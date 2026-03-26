@@ -1,0 +1,5 @@
+41a29ee HEAD@{0}: reset: moving to HEAD~1
+9437b8c HEAD@{1}: Branch: renamed refs/heads/main to refs/heads/main
+9437b8c HEAD@{3}: Branch: renamed refs/heads/master to refs/heads/main
+9437b8c HEAD@{5}: commit: Initialize modern Chat UI using Next.js and Tailwind
+41a29ee HEAD@{6}: commit (initial): Initial commit from Create Next App
