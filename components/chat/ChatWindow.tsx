@@ -113,10 +113,8 @@ export const ChatWindow = ({ user }) => {
 
   if (!user) {
     return (
-      <div className="chat-empty animate-fadeIn">
-        <div className="chat-empty-icon text-4xl">👋</div>
-        <h2 className="text-xl font-bold mt-4">Welcome to Bondly</h2>
-        <p className="text-sm opacity-60 max-w-xs text-center">Select a person from the sidebar to start a real-time conversation.</p>
+      <div className="chat-empty animate-fadeIn opacity-20">
+        <p className="text-xs uppercase tracking-[0.2em] font-bold">Select a person to start chatting</p>
       </div>
     );
   }

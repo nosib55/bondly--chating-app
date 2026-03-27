@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "../ui/Avatar";
-import { ChatItem } from "./ChatItem";
 import { useAppStore } from "../../store/useAppStore";
-import { CURRENT_USER, CHATS, USERS } from "../../constants";
-import { Search, Plus, LogOut, MessageSquare } from "lucide-react";
+import { CURRENT_USER } from "../../constants";
+import { Search, Plus, LogOut, MessageSquare, X } from "lucide-react";
 import { useAuth } from "../../features/auth/hooks/useAuth";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
@@ -15,37 +14,85 @@ export const ChatSidebar = () => {
   const router = useRouter();
   const { searchQuery, setSearchQuery, activeChatId, setActiveChatId, me, setMe } = useAppStore();
   const { currentUser } = useAuth();
-  
-  const [users, setUsers] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
 
-  // Fetch real users from MongoDB
+  // Contacts = users with whom there's at least one message
+  const [contacts, setContacts] = React.useState([]);
+  // Search results = any user on Bondly matched by name/email
+  const [searchResults, setSearchResults] = React.useState([]);
+  const [loadingContacts, setLoadingContacts] = React.useState(true);
+  const [searching, setSearching] = React.useState(false);
+  
+  // Track what was actually submitted for searching
+  const [activeSearchQuery, setActiveSearchQuery] = useState("");
+
+  const isSearching = activeSearchQuery.trim().length > 0;
+
+  // 1. Load MY profile + conversation partners on mount
   React.useEffect(() => {
-    async function fetchUsers() {
+    async function fetchContacts() {
+      if (!currentUser) return;
+      try {
+        // Load my profile
+        const usersRes = await fetch("/api/users");
+        const usersData = await usersRes.json();
+        if (usersData.success) {
+          const foundMe = usersData.users.find((u: any) => u.firebaseUid === currentUser.uid);
+          setMe(foundMe);
+        }
+
+        // Load conversation partners only
+        const convRes = await fetch(`/api/conversations?uid=${currentUser.uid}`);
+        const convData = await convRes.json();
+        if (convData.success) {
+          setContacts(convData.users);
+        }
+      } catch (err) {
+        console.error("Failed to fetch contacts", err);
+      } finally {
+        setLoadingContacts(false);
+      }
+    }
+    fetchContacts();
+  }, [currentUser]);
+
+  // 2. Search all users ONLY when activeSearchQuery changes (manual trigger)
+  // Exact match for name or email
+  React.useEffect(() => {
+    if (!isSearching) {
+      setSearchResults([]);
+      return;
+    }
+
+    async function doSearch() {
+      setSearching(true);
       try {
         const res = await fetch("/api/users");
         const data = await res.json();
         if (data.success) {
-          // Identify "Me" from the list
-          const foundMe = data.users.find((u: any) => u.firebaseUid === currentUser?.uid);
-          setMe(foundMe);
-          
-          // Filter out the current logged-in user for the people list
-          setUsers(data.users.filter((u: any) => u.firebaseUid !== currentUser?.uid));
+          const q = activeSearchQuery.toLowerCase();
+          const results = data.users.filter(
+            (u: any) =>
+              u.firebaseUid !== currentUser?.uid &&
+              (u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q))
+          );
+          setSearchResults(results);
         }
       } catch (err) {
-        console.error("Failed to fetch users", err);
+        console.error("Search failed", err);
       } finally {
-        setLoading(false);
+        setSearching(false);
       }
     }
-    if (currentUser) fetchUsers();
-  }, [currentUser]);
+    
+    doSearch();
+  }, [activeSearchQuery, currentUser, isSearching]);
 
-  const handleChatClick = (id) => {
+  const handleChatClick = useCallback((id: string) => {
     setActiveChatId(id);
+    setSearchQuery("");
+    setActiveSearchQuery("");
     router.push(`/${id}`);
-  };
+  }, [setActiveChatId, setSearchQuery, router]);
 
   const handleLogout = async () => {
     try {
@@ -56,13 +103,19 @@ export const ChatSidebar = () => {
     }
   };
 
-  const filteredUsers = useMemo(() => {
-    if (!searchQuery) return users;
-    return users.filter((u) => 
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery, users]);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveSearchQuery(searchQuery);
+  };
+  
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setActiveSearchQuery("");
+  };
+
+  const displayList = isSearching ? searchResults : contacts;
+  const sectionLabel = isSearching ? "Search Results" : "Conversations";
+  const isLoading = isSearching ? searching : loadingContacts;
 
   return (
     <div className="sidebar">
@@ -75,9 +128,6 @@ export const ChatSidebar = () => {
           <span className="sidebar-brand-name">Bondly</span>
         </div>
         <div className="sidebar-actions">
-          <button className="icon-btn hover:text-accent transition-colors">
-            <Plus size={18} />
-          </button>
           <button className="icon-btn hover:text-red-400 transition-colors" onClick={handleLogout} title="Log Out">
             <LogOut size={18} />
           </button>
@@ -85,7 +135,7 @@ export const ChatSidebar = () => {
       </div>
 
       {/* User Info */}
-      <div 
+      <div
         onClick={() => router.push("/profile")}
         className="sidebar-user bg-elevated/40 backdrop-blur-sm border border-white/5 hover:bg-elevated/60 transition-all cursor-pointer group"
         title="Edit your profile"
@@ -108,33 +158,46 @@ export const ChatSidebar = () => {
 
       {/* Search */}
       <div className="sidebar-search">
-        <div className="search-wrap">
-          <span className="search-icon">
+        <form className="search-wrap" onSubmit={handleSearchSubmit}>
+          <button 
+            type="submit" 
+            className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center text-text-muted hover:text-accent transition-colors z-10"
+            title="Search"
+          >
             <Search size={16} />
-          </span>
+          </button>
           <input
             className="search-input"
             type="text"
-            placeholder="Search people..."
+            placeholder="Search by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
+          {isSearching && (
+            <button
+              onClick={handleClearSearch}
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </form>
       </div>
 
       {/* List */}
-      <div className="sidebar-section-label">People on Bondly</div>
+      <div className="sidebar-section-label">{sectionLabel}</div>
       <div className="sidebar-list custom-scrollbar">
-        {loading ? (
+        {isLoading ? (
           <div className="px-4 py-8 flex flex-col items-center gap-3 opacity-50">
             <div className="spinner w-6 h-6 border-2"></div>
-            <span className="text-xs">Finding people...</span>
+            <span className="text-xs">{isSearching ? "Searching..." : "Loading..."}</span>
           </div>
-        ) : filteredUsers.length > 0 ? (
-          filteredUsers.map((user) => (
+        ) : displayList.length > 0 ? (
+          displayList.map((user: any) => (
             <div
               key={user._id}
-              onClick={() => handleChatClick(user._id)} // Using DB ID for routing
+              onClick={() => handleChatClick(user._id)}
               className={`chat-item group ${activeChatId === user._id ? "active" : ""}`}
             >
               <Avatar
@@ -146,17 +209,25 @@ export const ChatSidebar = () => {
               <div className="chat-item-body">
                 <div className="chat-item-top">
                   <span className="chat-item-name group-hover:text-accent transition-colors">{user.name}</span>
-                  <span className="chat-item-time text-[10px]">Just joined</span>
                 </div>
                 <div className="chat-item-bottom">
-                  <span className="chat-item-msg">Click to start a conversation</span>
+                  <span className="chat-item-msg">
+                    {isSearching ? user.email : "Tap to continue chatting"}
+                  </span>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="px-4 py-10 text-center">
-            <p className="text-xs text-text-muted">No people found matching "{searchQuery}"</p>
+          <div className="px-4 py-10 text-center space-y-1">
+            {isSearching ? (
+              <p className="text-xs text-text-muted">No matching users found for "{activeSearchQuery}"</p>
+            ) : (
+              <>
+                <p className="text-xs font-semibold text-text-secondary">No conversations yet</p>
+                <p className="text-xs text-text-muted">Search for someone to start chatting</p>
+              </>
+            )}
           </div>
         )}
       </div>

@@ -53,7 +53,7 @@ export default function RegisterPage() {
       });
 
       // 5. Navigate directly to dashboard on success
-      router.push("/c1");
+      router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to create account.");
     } finally {

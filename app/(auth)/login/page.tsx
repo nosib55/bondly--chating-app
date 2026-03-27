@@ -34,7 +34,7 @@ export default function LoginPage() {
         }),
       });
 
-      router.push("/c1"); // Go to dashboard/first chat upon success
+      router.push("/"); // Go to main chat layout upon success
     } catch (err: any) {
       setError("Failed to sign in. Please check your credentials.");
     } finally {
