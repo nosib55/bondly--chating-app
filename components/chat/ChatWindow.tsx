@@ -9,29 +9,63 @@ import { useAuth } from "../../features/auth/hooks/useAuth";
 export const ChatWindow = ({ user }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dbUser, setDbUser] = useState<any>(null);
   const { currentUser } = useAuth();
   const bottomRef = useRef(null);
 
-  // Load real messages from MongoDB
+  // Fetch current user's DB record
+  useEffect(() => {
+    async function fetchMe() {
+      if (!currentUser?.uid) return;
+      try {
+        const res = await fetch("/api/users");
+        const data = await res.json();
+        if (data.success) {
+          const found = data.users.find((u: any) => u.firebaseUid === currentUser.uid);
+          setDbUser(found);
+        }
+      } catch (err) {
+        console.error("Failed to load my profile", err);
+      }
+    }
+    fetchMe();
+  }, [currentUser?.uid]);
+
+  // Synchronous messaging via Polling
   useEffect(() => {
     if (!user?._id || !currentUser?.uid) return;
 
+    let isFetching = false;
+    
     async function fetchMessages() {
-      setLoading(true);
+      if (isFetching) return;
+      isFetching = true;
       try {
         const res = await fetch(`/api/messages/${user._id}?uid=${currentUser.uid}`);
         const data = await res.json();
         if (data.success) {
-          setMessages(data.messages);
+          // Only update if count or ID changed to prevent unnecessary re-renders
+          setMessages((prev) => {
+            if (prev.length === data.messages.length) return prev;
+            return data.messages;
+          });
         }
       } catch (err) {
-        console.error("Failed to load messages", err);
+        console.error("Polling error:", err);
       } finally {
+        isFetching = false;
         setLoading(false);
       }
     }
 
+    // Initial load
+    setLoading(true);
     fetchMessages();
+
+    // Polling interval
+    const intervalId = setInterval(fetchMessages, 3000);
+
+    return () => clearInterval(intervalId);
   }, [user?._id, currentUser?.uid]);
 
   // Handle auto-scroll
@@ -101,7 +135,7 @@ export const ChatWindow = ({ user }) => {
           <>
             <div className="msg-date-divider uppercase tracking-widest opacity-30 text-[9px] font-bold">Conversation Started</div>
             {messages.map((msg, i) => (
-              <MessageBubble key={msg._id || i} message={msg} />
+              <MessageBubble key={msg._id || i} message={msg} dbUser={dbUser} />
             ))}
           </>
         ) : (

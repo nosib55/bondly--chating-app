@@ -15,6 +15,10 @@ export const useAppStore = create((set) => ({
   searchQuery: "",
   setSearchQuery: (q) => set({ searchQuery: q }),
 
+  // User profile synchronization
+  me: null,
+  setMe: (userData) => set({ me: userData }),
+
   // Typing simulation
   typingUsers: {},
   setTyping: (chatId, isTyping) =>

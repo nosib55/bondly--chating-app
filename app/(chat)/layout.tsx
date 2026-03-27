@@ -4,12 +4,13 @@ import React, { useEffect } from "react";
 import { ChatSidebar } from "../../components/chat/ChatSidebar";
 import { useAppStore } from "../../store/useAppStore";
 import { useAuth } from "../../features/auth/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function ChatLayout({ children }) {
   const { activeChatId } = useAppStore();
   const { currentUser, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !currentUser) {
@@ -25,9 +26,12 @@ export default function ChatLayout({ children }) {
     );
   }
 
+  const isProfile = pathname === "/profile";
+  const shellClass = `chat-shell ${(activeChatId || isProfile) ? "chat-open" : ""}`;
+
   // Mobile layout wrapper config 
   return (
-    <div className={`chat-shell ${activeChatId ? "chat-open" : ""}`}>
+    <div className={shellClass}>
       <ChatSidebar />
       {children}
     </div>

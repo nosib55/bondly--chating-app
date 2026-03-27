@@ -1,14 +1,23 @@
 import React from "react";
 
-export const Avatar = ({ src, alt, size = "md", status, color }) => {
-  const getInitials = (name) => {
+interface AvatarProps {
+  src?: string;
+  alt?: string;
+  size?: "sm" | "md" | "lg";
+  status?: boolean;
+  color?: string;
+  className?: string;
+}
+
+export const Avatar = ({ src, alt, size = "md", status, color, className = "" }: AvatarProps) => {
+  const getInitials = (name?: string) => {
     if (!name) return "";
     return name.substring(0, 2).toUpperCase();
   };
 
   return (
     <div
-      className={`avatar avatar-${size}`}
+      className={`avatar avatar-${size} ${className}`}
       style={{ backgroundColor: color || "var(--bg-hover)", color: "#fff" }}
     >
       {src ? (

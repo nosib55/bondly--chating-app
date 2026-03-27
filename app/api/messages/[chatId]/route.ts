@@ -8,10 +8,10 @@ import User from "@/server/modules/user/user.model";
  */
 export async function GET(
   req: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
-    const { chatId: peerUserId } = params;
+    const { chatId: peerUserId } = await params;
     const { searchParams } = new URL(req.url);
     const senderUid = searchParams.get("uid"); // For simplicity, we pass UID until middleware is done
 
@@ -44,14 +44,14 @@ export async function GET(
  */
 export async function POST(
   req: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
-    const { chatId: peerUserId } = params;
+    const { chatId: peerUserId } = await params;
     const { senderUid, text, image } = await req.json();
 
-    if (!senderUid || !text) {
-      return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
+    if (!senderUid || (!text && !image)) {
+      return NextResponse.json({ success: false, message: "Missing required fields: need text or image" }, { status: 400 });
     }
 
     await connectDB();

@@ -1,6 +1,11 @@
 import React from "react";
 
-export const Badge = ({ count, className = "" }) => {
+interface BadgeProps {
+  count?: number;
+  className?: string;
+}
+
+export const Badge = ({ count, className = "" }: BadgeProps) => {
   if (!count || count <= 0) return null;
   return (
     <span className={`badge ${className}`}>

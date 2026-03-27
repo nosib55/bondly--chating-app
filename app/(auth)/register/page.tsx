@@ -141,7 +141,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary mt-2">
+          <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
             {loading ? "Creating account..." : "Sign Up"}
           </button>
         </form>

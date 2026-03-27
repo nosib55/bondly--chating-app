@@ -1,6 +1,11 @@
 import React, { forwardRef } from "react";
 
-export const Input = forwardRef(
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  icon?: React.ReactNode;
+  wrapClass?: string;
+}
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ icon, className = "", wrapClass = "", ...props }, ref) => {
     return (
       <div className={`input-wrap ${wrapClass}`}>

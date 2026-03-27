@@ -13,7 +13,7 @@ import { auth } from "../../lib/firebase";
 
 export const ChatSidebar = () => {
   const router = useRouter();
-  const { searchQuery, setSearchQuery, activeChatId, setActiveChatId } = useAppStore();
+  const { searchQuery, setSearchQuery, activeChatId, setActiveChatId, me, setMe } = useAppStore();
   const { currentUser } = useAuth();
   
   const [users, setUsers] = React.useState([]);
@@ -26,8 +26,12 @@ export const ChatSidebar = () => {
         const res = await fetch("/api/users");
         const data = await res.json();
         if (data.success) {
-          // Filter out the current logged-in user
-          setUsers(data.users.filter(u => u.firebaseUid !== currentUser?.uid));
+          // Identify "Me" from the list
+          const foundMe = data.users.find((u: any) => u.firebaseUid === currentUser?.uid);
+          setMe(foundMe);
+          
+          // Filter out the current logged-in user for the people list
+          setUsers(data.users.filter((u: any) => u.firebaseUid !== currentUser?.uid));
         }
       } catch (err) {
         console.error("Failed to fetch users", err);
@@ -81,17 +85,20 @@ export const ChatSidebar = () => {
       </div>
 
       {/* User Info */}
-      <div className="sidebar-user bg-elevated/40 backdrop-blur-sm border border-white/5 hover:bg-elevated/60 transition-all">
+      <div 
+        onClick={() => router.push("/profile")}
+        className="sidebar-user bg-elevated/40 backdrop-blur-sm border border-white/5 hover:bg-elevated/60 transition-all cursor-pointer group"
+        title="Edit your profile"
+      >
         <Avatar
-          src={currentUser?.photoURL}
-          alt={currentUser?.displayName || currentUser?.email || "User"}
+          src={me?.avatar}
+          alt={me?.name || "User"}
           color={CURRENT_USER.avatarColor}
           size="sm"
-          status={true}
         />
         <div className="sidebar-user-info">
-          <div className="sidebar-user-name">
-            {currentUser?.displayName || currentUser?.email || "User"}
+          <div className="sidebar-user-name group-hover:text-accent transition-colors">
+            {me?.name || currentUser?.email || "User"}
           </div>
           <div className="sidebar-user-status">
             <span className="online-dot" /> Online

@@ -2,7 +2,7 @@ import React from "react";
 import { Check, CheckCheck } from "lucide-react";
 import { useAuth } from "../../features/auth/hooks/useAuth";
 
-export const MessageBubble = ({ message, showTail = true }) => {
+export const MessageBubble = ({ message, showTail = true, dbUser = null }) => {
   const { currentUser } = useAuth();
   
   if (message.typing) {
@@ -21,6 +21,8 @@ export const MessageBubble = ({ message, showTail = true }) => {
   // Optimistic messages use sender._id === "me" 
   // Real messages have populated sender or ID string
   const isMe = message.sender?._id === "me" || 
+               message.sender === dbUser?._id || 
+               message.sender?._id === dbUser?._id ||
                message.sender === currentUser?.uid || 
                message.sender?.firebaseUid === currentUser?.uid;
 
