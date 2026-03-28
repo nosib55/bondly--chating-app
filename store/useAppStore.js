@@ -19,6 +19,10 @@ export const useAppStore = create((set) => ({
   me: null,
   setMe: (userData) => set({ me: userData }),
 
+  // Notifications
+  totalUnread: 0,
+  setTotalUnread: (count) => set({ totalUnread: count }),
+
   // Typing simulation
   typingUsers: {},
   setTyping: (chatId, isTyping) =>

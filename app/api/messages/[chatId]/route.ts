@@ -73,3 +73,35 @@ export async function POST(
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+/**
+ * PATCH: Mark messages from peer as read
+ */
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ chatId: string }> }
+) {
+  try {
+    const { chatId: peerUserId } = await params;
+    const { uid: myFirebaseUid } = await req.json();
+
+    if (!myFirebaseUid) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    await connectDB();
+
+    const me = await User.findOne({ firebaseUid: myFirebaseUid });
+    if (!me) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+
+    // Mark all messages WHERE sender = peerUserId AND receiver = me._id AND read = false
+    await Message.updateMany(
+      { sender: peerUserId, receiver: me._id, read: false },
+      { $set: { read: true } }
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}

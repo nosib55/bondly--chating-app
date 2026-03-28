@@ -27,33 +27,49 @@ export const ChatSidebar = () => {
 
   const isSearching = activeSearchQuery.trim().length > 0;
 
-  // 1. Load MY profile + conversation partners on mount
+  // 1. Load MY profile + conversation partners + Poll for updates
   React.useEffect(() => {
+    if (!currentUser) return;
+
+    let isFetching = false;
+
     async function fetchContacts() {
-      if (!currentUser) return;
+      if (isFetching) return;
+      isFetching = true;
       try {
-        // Load my profile
-        const usersRes = await fetch("/api/users");
-        const usersData = await usersRes.json();
-        if (usersData.success) {
-          const foundMe = usersData.users.find((u: any) => u.firebaseUid === currentUser.uid);
-          setMe(foundMe);
+        // Only load profile once
+        if (!me) {
+          const usersRes = await fetch("/api/users");
+          const usersData = await usersRes.json();
+          if (usersData.success) {
+            const foundMe = usersData.users.find((u: any) => u.firebaseUid === currentUser.uid);
+            setMe(foundMe);
+          }
         }
 
-        // Load conversation partners only
+        // Load conversation partners with unread info
         const convRes = await fetch(`/api/conversations?uid=${currentUser.uid}`);
         const convData = await convRes.json();
         if (convData.success) {
           setContacts(convData.users);
+          
+          // Calculate global unread count
+          const total = convData.users.reduce((acc, user) => acc + (user.unreadCount || 0), 0);
+          useAppStore.getState().setTotalUnread(total);
         }
       } catch (err) {
         console.error("Failed to fetch contacts", err);
       } finally {
+        isFetching = false;
         setLoadingContacts(false);
       }
     }
+
     fetchContacts();
-  }, [currentUser]);
+    const intervalId = setInterval(fetchContacts, 4000); // 4s polling
+
+    return () => clearInterval(intervalId);
+  }, [currentUser, me, setMe]);
 
   // 2. Search all users ONLY when activeSearchQuery changes (manual trigger)
   // Exact match for name or email
@@ -200,19 +216,27 @@ export const ChatSidebar = () => {
               onClick={() => handleChatClick(user._id)}
               className={`chat-item group ${activeChatId === user._id ? "active" : ""}`}
             >
-              <Avatar
+                <Avatar
                 src={user.avatar}
                 alt={user.name}
                 color="var(--bg-hover)"
                 status={user.online}
+                unreadCount={user.unreadCount}
               />
               <div className="chat-item-body">
                 <div className="chat-item-top">
-                  <span className="chat-item-name group-hover:text-accent transition-colors">{user.name}</span>
+                  <span className={`chat-item-name group-hover:text-accent font-bold transition-colors ${user.unreadCount > 0 ? "text-text-primary" : "text-text-secondary"}`}>
+                    {user.name}
+                  </span>
+                  {user.lastMessageTime && (
+                    <span className="chat-item-time text-[10px] opacity-40">
+                      {new Date(user.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
                 </div>
                 <div className="chat-item-bottom">
-                  <span className="chat-item-msg">
-                    {isSearching ? user.email : "Tap to continue chatting"}
+                  <span className={`chat-item-msg ${user.unreadCount > 0 ? "font-bold text-text-primary" : "text-text-muted"}`}>
+                    {isSearching ? user.email : (user.lastMessage || "Start a conversation")}
                   </span>
                 </div>
               </div>

@@ -7,9 +7,10 @@ interface AvatarProps {
   status?: boolean;
   color?: string;
   className?: string;
+  unreadCount?: number;
 }
 
-export const Avatar = ({ src, alt, size = "md", status, color, className = "" }: AvatarProps) => {
+export const Avatar = ({ src, alt, size = "md", status, color, className = "", unreadCount }: AvatarProps) => {
   const getInitials = (name?: string) => {
     if (!name) return "";
     return name.substring(0, 2).toUpperCase();
@@ -41,6 +42,12 @@ export const Avatar = ({ src, alt, size = "md", status, color, className = "" }:
           }`}
           style={{ zIndex: 10 }}
         />
+      )}
+
+      {unreadCount !== undefined && unreadCount > 0 && (
+        <div className="absolute -top-1 -right-1 bg-accent text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-black border-2 border-[#0a0a0d] shadow-lg animate-pulse">
+           {unreadCount > 9 ? "9+" : unreadCount}
+        </div>
       )}
     </div>
   );

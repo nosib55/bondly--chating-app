@@ -24,29 +24,53 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
-    // Find all messages where the current user is sender OR receiver
+    // Find all messages involving the current user
     const messages = await Message.find({
       $or: [{ sender: me._id }, { receiver: me._id }],
-    }).select("sender receiver createdAt").sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 });
 
-    // Collect unique peer IDs (the other party in each message)
-    const peerIdSet = new Set<string>();
+    // Collect partners and their last message/unread counts
+    const partnerMap = new Map<string, any>();
+    const meIdStr = me._id.toString();
+
     for (const msg of messages) {
       const senderId = msg.sender.toString();
       const receiverId = msg.receiver.toString();
-      const meId = me._id.toString();
-      if (senderId !== meId) peerIdSet.add(senderId);
-      if (receiverId !== meId) peerIdSet.add(receiverId);
+      const partnerId = senderId === meIdStr ? receiverId : senderId;
+
+      if (!partnerMap.has(partnerId)) {
+        partnerMap.set(partnerId, {
+          lastMessage: msg.text || (msg.image ? "Sent a photo" : ""),
+          lastMessageTime: msg.createdAt,
+          unreadCount: 0,
+        });
+      }
+
+      // If I am the receiver and message is unread, increment count
+      if (receiverId === meIdStr && !msg.read) {
+        partnerMap.get(partnerId).unreadCount += 1;
+      }
     }
 
-    if (peerIdSet.size === 0) {
+    if (partnerMap.size === 0) {
       return NextResponse.json({ success: true, users: [] });
     }
 
     // Fetch the peer user documents
-    const peerUsers = await User.find({ _id: { $in: Array.from(peerIdSet) } });
+    const peerUsers = await User.find({ _id: { $in: Array.from(partnerMap.keys()) } });
 
-    return NextResponse.json({ success: true, users: peerUsers });
+    // Combine user data with conversation metadata
+    const finalUsers = peerUsers.map(user => {
+      const convInfo = partnerMap.get(user._id.toString());
+      return {
+        ...user.toObject(),
+        lastMessage: convInfo.lastMessage,
+        lastMessageTime: convInfo.lastMessageTime,
+        unreadCount: convInfo.unreadCount,
+      };
+    }).sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
+
+    return NextResponse.json({ success: true, users: finalUsers });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

@@ -62,8 +62,25 @@ export const ChatWindow = ({ user }) => {
     setLoading(true);
     fetchMessages();
 
+    // Mark as read when opening
+    const markAsRead = async () => {
+      try {
+        await fetch(`/api/messages/${user._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: currentUser.uid })
+        });
+      } catch (err) {
+        console.error("Failed to mark as read", err);
+      }
+    };
+    markAsRead();
+
     // Polling interval
-    const intervalId = setInterval(fetchMessages, 3000);
+    const intervalId = setInterval(() => {
+      fetchMessages();
+      markAsRead();
+    }, 3000);
 
     return () => clearInterval(intervalId);
   }, [user?._id, currentUser?.uid]);
