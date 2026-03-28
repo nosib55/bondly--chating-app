@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     await connectDB();
 
     // Resolve the current user's MongoDB ObjectId
-    const me = await User.findOne({ firebaseUid: uid });
+    const me = (await User.findOne({ firebaseUid: uid })) as any;
     if (!me) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
@@ -62,11 +62,14 @@ export async function GET(req: Request) {
     // Combine user data with conversation metadata
     const finalUsers = peerUsers.map(user => {
       const convInfo = partnerMap.get(user._id.toString());
+      const isLocked = me.lockedUsers?.includes(user._id.toString());
+      
       return {
         ...user.toObject(),
         lastMessage: convInfo.lastMessage,
         lastMessageTime: convInfo.lastMessageTime,
         unreadCount: convInfo.unreadCount,
+        locked: !!isLocked,
       };
     }).sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
 

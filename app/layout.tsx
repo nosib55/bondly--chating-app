@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from '@vercel/analytics/react';
 import { NotificationManager } from "../components/NotificationManager";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });

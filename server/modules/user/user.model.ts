@@ -8,6 +8,7 @@ export interface IUser extends Document {
   avatar: string;
   online: boolean;
   lastSeen: Date;
+  lockedUsers: string[];
 }
 
 const UserSchema: Schema = new Schema(
@@ -19,6 +20,7 @@ const UserSchema: Schema = new Schema(
     avatar: { type: String, default: "" },
     online: { type: Boolean, default: false },
     lastSeen: { type: Date, default: Date.now },
+    lockedUsers: { type: [String], default: [] },
   },
   { timestamps: true }
 );

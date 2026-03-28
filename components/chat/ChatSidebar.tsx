@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { Avatar } from "../ui/Avatar";
 import { useAppStore } from "../../store/useAppStore";
 import { CURRENT_USER } from "../../constants";
-import { Search, Plus, LogOut, MessageSquare, X } from "lucide-react";
+import { Search, Plus, LogOut, MessageSquare, X, Lock, Trash2 } from "lucide-react";
 import { useAuth } from "../../features/auth/hooks/useAuth";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import Swal from "sweetalert2";
 
 export const ChatSidebar = () => {
   const router = useRouter();
@@ -225,8 +226,9 @@ export const ChatSidebar = () => {
               />
               <div className="chat-item-body">
                 <div className="chat-item-top">
-                  <span className={`chat-item-name group-hover:text-accent font-bold transition-colors ${user.unreadCount > 0 ? "text-text-primary" : "text-text-secondary"}`}>
+                  <span className={`chat-item-name group-hover:text-accent font-bold transition-colors flex items-center gap-1 ${user.unreadCount > 0 ? "text-text-primary" : "text-text-secondary"}`}>
                     {user.name}
+                    {user.locked && <Lock size={10} className="text-accent" />}
                   </span>
                   {user.lastMessageTime && (
                     <span className="chat-item-time text-[10px] opacity-40">
@@ -234,10 +236,44 @@ export const ChatSidebar = () => {
                     </span>
                   )}
                 </div>
-                <div className="chat-item-bottom">
+                <div className="chat-item-bottom flex items-center justify-between">
                   <span className={`chat-item-msg ${user.unreadCount > 0 ? "font-bold text-text-primary" : "text-text-muted"}`}>
                     {isSearching ? user.email : (user.lastMessage || "Start a conversation")}
                   </span>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const result = await Swal.fire({
+                        title: "Delete chat?",
+                        text: `This will remove all messages with ${user.name}.`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#ef4444",
+                        cancelButtonColor: "var(--bg-active)",
+                        background: "var(--bg-surface)",
+                        color: "var(--text-primary)"
+                      });
+
+                      if (result.isConfirmed) {
+                        fetch(`/api/messages/${user._id}?uid=${currentUser.uid}`, { method: 'DELETE' }).then(() => {
+                           router.push('/');
+                           setActiveChatId(null);
+                           Swal.fire({
+                             title: "Deleted",
+                             icon: "success",
+                             timer: 1500,
+                             showConfirmButton: false,
+                             background: "var(--bg-surface)",
+                             color: "var(--text-primary)"
+                           });
+                        });
+                      }
+                    }}
+                    title="Delete Chat"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             </div>

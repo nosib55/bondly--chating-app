@@ -105,3 +105,38 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+/**
+ * DELETE: Delete entire chat history with peer
+ */
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ chatId: string }> }
+) {
+  try {
+    const { chatId: peerUserId } = await params;
+    const { searchParams } = new URL(req.url);
+    const myUid = searchParams.get("uid");
+
+    if (!myUid) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    await connectDB();
+
+    const me = await User.findOne({ firebaseUid: myUid });
+    if (!me) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+
+    // Delete all messages where {me, peer} are {sender, receiver} or vice versa
+    await Message.deleteMany({
+      $or: [
+        { sender: me._id, receiver: peerUserId },
+        { sender: peerUserId, receiver: me._id }
+      ]
+    });
+
+    return NextResponse.json({ success: true, message: "Conversation deleted" });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
