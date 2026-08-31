@@ -47,6 +47,11 @@ export async function GET(
       ]
     }).sort({ createdAt: 1 });
 
+    // Ensure peer is in current user's contacts
+    User.findByIdAndUpdate(sender._id, { $addToSet: { contacts: peerUserId } }).catch((e) =>
+      console.error("Error adding contact on chat open:", e)
+    );
+
     return NextResponse.json({ success: true, messages });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -82,7 +87,14 @@ export async function POST(
       read: false
     });
 
+    // Add to each other's contacts list so they always show in conversations sidebar
+    await Promise.all([
+      User.findByIdAndUpdate(sender._id, { $addToSet: { contacts: peerUserId } }),
+      User.findByIdAndUpdate(peerUserId, { $addToSet: { contacts: sender._id } }),
+    ]).catch((e) => console.error("Error updating contacts in POST:", e));
+
     return NextResponse.json({ success: true, message });
+
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

@@ -10,6 +10,7 @@ export interface IUser extends Document {
   lastSeen: Date;
   lockedUsers: string[];
   autoDelete12h?: boolean;
+  contacts?: (mongoose.Types.ObjectId | string)[];
 }
 
 const UserSchema: Schema = new Schema(
@@ -23,6 +24,7 @@ const UserSchema: Schema = new Schema(
     lastSeen: { type: Date, default: Date.now },
     lockedUsers: { type: [String], default: [] },
     autoDelete12h: { type: Boolean, default: false },
+    contacts: { type: [Schema.Types.ObjectId], ref: "User", default: [] },
   },
   { timestamps: true }
 );
@@ -31,3 +33,4 @@ const User: Model<IUser> =
   mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
 
 export default User;
+
