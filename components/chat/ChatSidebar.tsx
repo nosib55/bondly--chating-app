@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Avatar } from "../ui/Avatar";
 import { useAppStore } from "../../store/useAppStore";
 import { CURRENT_USER } from "../../constants";
-import { Search, Plus, LogOut, MessageSquare, X, Lock, Trash2 } from "lucide-react";
+import { Search, Plus, LogOut, MessageSquare, X, Lock, Trash2, Timer } from "lucide-react";
 import { useAuth } from "../../features/auth/hooks/useAuth";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
@@ -130,6 +130,49 @@ export const ChatSidebar = () => {
     setActiveSearchQuery("");
   };
 
+  const handleClearAllHistory = async () => {
+    if (!currentUser?.uid) return;
+
+    const result = await Swal.fire({
+      title: "Delete All Chat History?",
+      text: "This will permanently wipe all conversations for BOTH SIDES (both you and your contacts). This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "var(--bg-active)",
+      confirmButtonText: "Yes, delete for both sides",
+      cancelButtonText: "Cancel",
+      background: "var(--bg-surface)",
+      color: "var(--text-primary)",
+      iconColor: "#ef4444"
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(`/api/messages?uid=${currentUser.uid}&mode=all`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (data.success) {
+          setContacts([]);
+          setActiveChatId(null);
+          router.push("/");
+          Swal.fire({
+            title: "Chat History Wiped",
+            text: "All messages deleted for both sides.",
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false,
+            background: "var(--bg-surface)",
+            color: "var(--text-primary)",
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
   const displayList = isSearching ? searchResults : contacts;
   const sectionLabel = isSearching ? "Search Results" : "Conversations";
   const isLoading = isSearching ? searching : loadingContacts;
@@ -144,7 +187,24 @@ export const ChatSidebar = () => {
           </div>
           <span className="sidebar-brand-name">Bondly</span>
         </div>
-        <div className="sidebar-actions">
+        <div className="sidebar-actions flex items-center gap-1">
+          {me?.autoDelete12h && (
+            <div 
+              onClick={() => router.push("/profile")}
+              className="flex items-center gap-1 px-2 py-1 rounded-full bg-accent/15 border border-accent/25 text-accent text-[10px] font-bold cursor-pointer hover:bg-accent/25 transition-all"
+              title="12-Hour Auto-Delete Active"
+            >
+              <Timer size={12} className="animate-pulse" />
+              <span>12h Auto</span>
+            </div>
+          )}
+          <button 
+            className="icon-btn hover:text-red-400 transition-colors" 
+            onClick={handleClearAllHistory} 
+            title="Delete All Chat History (Both Sides)"
+          >
+            <Trash2 size={16} />
+          </button>
           <button className="icon-btn hover:text-red-400 transition-colors" onClick={handleLogout} title="Log Out">
             <LogOut size={18} />
           </button>
@@ -167,8 +227,15 @@ export const ChatSidebar = () => {
           <div className="sidebar-user-name group-hover:text-accent transition-colors">
             {me?.name || currentUser?.email || "User"}
           </div>
-          <div className="sidebar-user-status">
-            <span className="online-dot" /> Online
+          <div className="sidebar-user-status flex items-center justify-between">
+            <span className="flex items-center">
+              <span className="online-dot" /> Online
+            </span>
+            {me?.autoDelete12h && (
+              <span className="text-[10px] text-accent font-semibold flex items-center gap-1">
+                <Timer size={10} /> 12h Wipe On
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -203,7 +270,18 @@ export const ChatSidebar = () => {
       </div>
 
       {/* List */}
-      <div className="sidebar-section-label">{sectionLabel}</div>
+      <div className="sidebar-section-label flex items-center justify-between">
+        <span>{sectionLabel}</span>
+        {!isSearching && contacts.length > 0 && (
+          <button 
+            onClick={handleClearAllHistory}
+            className="text-[10px] font-bold text-text-muted hover:text-red-400 transition-colors uppercase tracking-wider flex items-center gap-1"
+            title="Delete all chat history"
+          >
+            <Trash2 size={11} /> Clear All
+          </button>
+        )}
+      </div>
       <div className="sidebar-list custom-scrollbar">
         {isLoading ? (
           <div className="px-4 py-8 flex flex-col items-center gap-3 opacity-50">

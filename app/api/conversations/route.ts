@@ -24,6 +24,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
+    // If 12h auto-delete is enabled, purge expired messages for both sides
+    if (me.autoDelete12h) {
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      await Message.deleteMany({
+        $or: [{ sender: me._id }, { receiver: me._id }],
+        createdAt: { $lt: twelveHoursAgo },
+      });
+    }
+
     // Find all messages involving the current user
     const messages = await Message.find({
       $or: [{ sender: me._id }, { receiver: me._id }],

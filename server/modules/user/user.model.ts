@@ -9,6 +9,7 @@ export interface IUser extends Document {
   online: boolean;
   lastSeen: Date;
   lockedUsers: string[];
+  autoDelete12h?: boolean;
 }
 
 const UserSchema: Schema = new Schema(
@@ -21,6 +22,7 @@ const UserSchema: Schema = new Schema(
     online: { type: Boolean, default: false },
     lastSeen: { type: Date, default: Date.now },
     lockedUsers: { type: [String], default: [] },
+    autoDelete12h: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

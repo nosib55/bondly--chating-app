@@ -26,7 +26,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { name, username, avatar } = await req.json();
+    const { name, username, avatar, autoDelete12h } = await req.json();
 
     await connectDB();
     
@@ -35,9 +35,10 @@ export async function PATCH(
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
-    if (name) user.name = name;
-    if (username) user.username = username;
-    if (avatar) user.avatar = avatar;
+    if (name !== undefined) user.name = name;
+    if (username !== undefined) user.username = username;
+    if (avatar !== undefined) user.avatar = avatar;
+    if (autoDelete12h !== undefined) user.autoDelete12h = autoDelete12h;
 
     await user.save();
 

@@ -21,6 +21,9 @@ import {
   Save,
   RotateCcw,
   Trash2,
+  Clock,
+  Timer,
+  RefreshCw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { uploadToImgBB } from "../../../lib/imgbb";
@@ -48,6 +51,11 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Auto-delete state
+  const [autoDelete12h, setAutoDelete12h] = useState(false);
+  const [togglingAutoDelete, setTogglingAutoDelete] = useState(false);
+  const [clearingChats, setClearingChats] = useState(false);
 
   // Original state for discard functionality
   const [originalData, setOriginalData] = useState({
@@ -84,6 +92,7 @@ export default function ProfilePage() {
             setName(initialName);
             setUsername(initialUsername);
             setAvatar(initialAvatar);
+            setAutoDelete12h(!!found.autoDelete12h);
             setOriginalData({
               name: initialName,
               username: initialUsername,
@@ -260,6 +269,138 @@ export default function ProfilePage() {
       });
     } finally {
       setChangingPwd(false);
+    }
+  };
+
+  const handleToggleAutoDelete = async () => {
+    if (!me?._id) return;
+    const newValue = !autoDelete12h;
+    setTogglingAutoDelete(true);
+    try {
+      const res = await fetch(`/api/users/${me._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoDelete12h: newValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAutoDelete12h(newValue);
+        setMe({ ...me, autoDelete12h: newValue });
+        Swal.fire({
+          icon: "success",
+          title: newValue ? "12-Hour Auto-Delete Enabled" : "12-Hour Auto-Delete Disabled",
+          text: newValue
+            ? "Messages older than 12 hours will automatically be deleted for both sides."
+            : "Automatic 12-hour chat history deletion is now disabled.",
+          timer: 2500,
+          showConfirmButton: false,
+          background: "#151820",
+          color: "#fff",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update auto-delete setting", err);
+      Swal.fire({
+        icon: "error",
+        title: "Update failed",
+        text: "Could not save 12-hour auto-delete preference.",
+        background: "#151820",
+        color: "#fff",
+      });
+    } finally {
+      setTogglingAutoDelete(false);
+    }
+  };
+
+  const handleDeleteAllChats = async () => {
+    if (!currentUser?.uid) return;
+    const result = await Swal.fire({
+      title: "Delete ALL Chat History?",
+      text: "This will permanently delete every single message and conversation for BOTH SIDES (both you and the other participants). This action CANNOT be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#222638",
+      confirmButtonText: "Yes, delete for both sides",
+      cancelButtonText: "Cancel",
+      background: "#151820",
+      color: "#fff",
+      iconColor: "#ef4444",
+    });
+
+    if (result.isConfirmed) {
+      setClearingChats(true);
+      try {
+        const res = await fetch(`/api/messages?uid=${currentUser.uid}&mode=all`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (data.success) {
+          useAppStore.getState().setActiveChatId(null);
+          Swal.fire({
+            title: "Chat History Deleted!",
+            text: data.message || "All chat conversations have been wiped for both sides.",
+            icon: "success",
+            background: "#151820",
+            color: "#fff",
+            confirmButtonColor: "#6c63ff",
+          });
+        } else {
+          throw new Error(data.message || "Failed to delete chat history");
+        }
+      } catch (err: any) {
+        console.error(err);
+        Swal.fire({
+          title: "Deletion Failed",
+          text: err.message || "Something went wrong while deleting history.",
+          icon: "error",
+          background: "#151820",
+          color: "#fff",
+        });
+      } finally {
+        setClearingChats(false);
+      }
+    }
+  };
+
+  const handleDelete12hChats = async () => {
+    if (!currentUser?.uid) return;
+    const result = await Swal.fire({
+      title: "Purge >12h Old History?",
+      text: "All messages older than 12 hours across all conversations will be permanently deleted for both sides.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#f59e0b",
+      cancelButtonColor: "#222638",
+      confirmButtonText: "Yes, purge >12h messages",
+      cancelButtonText: "Cancel",
+      background: "#151820",
+      color: "#fff",
+      iconColor: "#f59e0b",
+    });
+
+    if (result.isConfirmed) {
+      setClearingChats(true);
+      try {
+        const res = await fetch(`/api/messages?uid=${currentUser.uid}&mode=12h`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (data.success) {
+          Swal.fire({
+            title: "Old Messages Purged!",
+            text: data.message || "Messages older than 12 hours have been wiped for both sides.",
+            icon: "success",
+            background: "#151820",
+            color: "#fff",
+            confirmButtonColor: "#6c63ff",
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setClearingChats(false);
+      }
     }
   };
 
@@ -703,38 +844,153 @@ export default function ProfilePage() {
           </form>
         )}
 
-        {/* TAB 3: Danger Zone */}
+        {/* TAB 3: Danger Zone & Privacy Settings */}
         {activeTab === "danger" && (
-          <div className="rounded-3xl bg-red-500/[0.04] border border-red-500/20 p-6 sm:p-8 space-y-6 shadow-xl animate-fadeIn">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
-                <AlertTriangle size={24} />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-red-400">Danger Zone</h3>
-                <p className="text-xs sm:text-sm text-[#8890a6] leading-relaxed">
-                  Permanent actions regarding your account. Once you delete your
-                  account, there is no recovery. All chats, messages, and
-                  associated profile data will be permanently wiped.
-                </p>
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header banner */}
+            <div className="rounded-3xl bg-gradient-to-r from-red-500/[0.08] via-amber-500/[0.04] to-transparent border border-red-500/20 p-6 sm:p-8 shadow-xl">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
+                  <AlertTriangle size={24} />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold text-red-400">
+                    Chat Privacy & Danger Zone
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#8890a6] leading-relaxed">
+                    Manage one-click chat history deletion, 12-hour automated wipe settings, and permanent account actions. Deletions apply to <strong className="text-white">both sides</strong> (both sender and receiver).
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#151820] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h4 className="text-sm font-bold text-white">Delete this account</h4>
-                <p className="text-xs text-[#8890a6]">
-                  Erase your profile and all conversation history
-                </p>
+            {/* Feature 1: 12-Hour Auto-Delete Chat History Toggle */}
+            <div className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent flex-shrink-0 mt-0.5">
+                    <Timer size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-white">
+                        12-Hour Auto-Delete Chat History
+                      </h4>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          autoDelete12h
+                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                            : "bg-white/5 text-[#8890a6] border border-white/10"
+                        }`}
+                      >
+                        {autoDelete12h ? "Active (12h)" : "Disabled"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#8890a6] mt-1 max-w-xl">
+                      After every 12 hours, messages will automatically disappear and be permanently deleted for <span className="text-white font-medium">both sides</span> across all your conversations.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Toggle switch button */}
+                <button
+                  type="button"
+                  onClick={handleToggleAutoDelete}
+                  disabled={togglingAutoDelete}
+                  className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                    autoDelete12h ? "bg-accent" : "bg-[#222638]"
+                  }`}
+                  role="switch"
+                  aria-checked={autoDelete12h}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      autoDelete12h ? "translate-x-7" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleDeleteAccountClick}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 border border-red-500/20 transition-all flex items-center justify-center gap-2 whitespace-nowrap active:scale-95"
-              >
-                <Trash2 size={14} />
-                <span>Delete Account</span>
-              </button>
+
+              {/* Status banner */}
+              {autoDelete12h && (
+                <div className="p-3.5 rounded-2xl bg-accent/5 border border-accent/20 flex items-center gap-3 text-xs text-accent">
+                  <Clock size={16} className="flex-shrink-0" />
+                  <span>
+                    Auto-cleanup is active. Messages older than 12 hours are regularly wiped for both sides in real time.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Feature 2: One-Click Delete All Chat History (Both Sides) */}
+            <div className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0 mt-0.5">
+                    <Trash2 size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">
+                      One-Click Delete All Chat History
+                    </h4>
+                    <p className="text-xs text-[#8890a6] mt-1 max-w-xl">
+                      Instantly and permanently wipe all messages and conversations for <span className="text-white font-medium">both sides</span> (all chat participants).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 sm:self-center">
+                  <button
+                    type="button"
+                    onClick={handleDelete12hChats}
+                    disabled={clearingChats}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500 border border-amber-500/20 transition-all flex items-center justify-center gap-2 whitespace-nowrap active:scale-95 disabled:opacity-50"
+                  >
+                    <Clock size={14} />
+                    <span>Purge &gt;12h History</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDeleteAllChats}
+                    disabled={clearingChats}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 border border-red-500/30 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-lg shadow-red-500/20 active:scale-95 disabled:opacity-50"
+                  >
+                    {clearingChats ? (
+                      <Loader2 className="animate-spin" size={14} />
+                    ) : (
+                      <Trash2 size={14} />
+                    )}
+                    <span>Delete All Chats (Both Sides)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 3: Delete Account */}
+            <div className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#8890a6] flex-shrink-0 mt-0.5">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Delete this account</h4>
+                    <p className="text-xs text-[#8890a6] mt-1">
+                      Erase your profile, credentials, and all account association permanently.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccountClick}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 border border-red-500/20 transition-all flex items-center justify-center gap-2 whitespace-nowrap active:scale-95 self-start sm:self-center"
+                >
+                  <Trash2 size={14} />
+                  <span>Delete Account</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
