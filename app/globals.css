@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@theme {
+  --color-base: #0d0f14;
+  --color-surface: #151820;
+  --color-elevated: #1c2030;
+  --color-hover: #222638;
+  --color-active: #252a42;
+  --color-accent: #6c63ff;
+  --color-accent-dim: #4e46d4;
+  --color-text-primary: #e8eaf6;
+  --color-text-secondary: #8890a6;
+  --color-text-muted: #545d72;
+  --color-online: #34d399;
+}
+
 /* ─── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
   --bg-base: #0d0f14;
@@ -7,6 +21,7 @@
   --bg-elevated: #1c2030;
   --bg-hover: #222638;
   --bg-active: #252a42;
+
 
   --accent: #6c63ff;
   --accent-dim: #4e46d4;

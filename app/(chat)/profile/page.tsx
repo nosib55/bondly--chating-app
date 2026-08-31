@@ -23,7 +23,7 @@ import {
   Trash2,
   Clock,
   Timer,
-  RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { uploadToImgBB } from "../../../lib/imgbb";
@@ -35,7 +35,7 @@ import {
 } from "firebase/auth";
 import Swal from "sweetalert2";
 
-type TabType = "general" | "security" | "danger";
+type TabType = "general" | "privacy" | "security";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -118,9 +118,9 @@ export default function ProfilePage() {
         icon: "warning",
         title: "File too large",
         text: "Please select an image smaller than 5MB.",
-        background: "#151820",
-        color: "#fff",
-        confirmButtonColor: "#6c63ff",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
+        confirmButtonColor: "var(--accent)",
       });
       return;
     }
@@ -131,12 +131,12 @@ export default function ProfilePage() {
       setAvatar(url);
       Swal.fire({
         icon: "success",
-        title: "Avatar Uploaded!",
-        text: "Click 'Save Changes' to apply your new picture.",
-        timer: 2000,
+        title: "Avatar Uploaded",
+        text: "Don't forget to click 'Save Changes' to save your new avatar.",
+        timer: 2200,
         showConfirmButton: false,
-        background: "#151820",
-        color: "#fff",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
       });
     } catch (err) {
       console.error("Failed to upload avatar:", err);
@@ -144,12 +144,67 @@ export default function ProfilePage() {
         icon: "error",
         title: "Upload Failed",
         text: "Could not upload image. Please try again.",
-        background: "#151820",
-        color: "#fff",
-        confirmButtonColor: "#6c63ff",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
+        confirmButtonColor: "var(--accent)",
       });
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!name.trim()) return;
+
+    setSaving(true);
+    setSuccess(false);
+
+    try {
+      const res = await fetch(`/api/users/${currentUser?.uid}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          username: username.trim(),
+          avatar: avatar.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setMe(data.user);
+        setOriginalData({
+          name: data.user.name || "",
+          username: data.user.username || "",
+          avatar: data.user.avatar || "",
+        });
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+
+        Swal.fire({
+          icon: "success",
+          title: "Profile Updated",
+          timer: 1500,
+          showConfirmButton: false,
+          background: "var(--bg-surface)",
+          color: "var(--text-primary)",
+        });
+      } else {
+        throw new Error(data.message || "Failed to update profile");
+      }
+    } catch (err: any) {
+      console.error("Failed to update profile", err);
+      Swal.fire({
+        icon: "error",
+        title: "Update Failed",
+        text: err.message || "An error occurred while saving your profile.",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
+        confirmButtonColor: "var(--accent)",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -159,113 +214,68 @@ export default function ProfilePage() {
     setAvatar(originalData.avatar);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!me?._id) return;
-
-    setSaving(true);
-    setSuccess(false);
-    try {
-      const res = await fetch(`/api/users/${me._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, username, avatar }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMe(data.user || { ...me, name, username, avatar });
-        setOriginalData({ name, username, avatar });
-        setSuccess(true);
-        Swal.fire({
-          icon: "success",
-          title: "Profile Updated!",
-          text: "Your profile information has been saved.",
-          timer: 2000,
-          showConfirmButton: false,
-          background: "#151820",
-          color: "#fff",
-        });
-        setTimeout(() => setSuccess(false), 3000);
-      } else {
-        throw new Error(data.message || "Failed to update profile");
-      }
-    } catch (err: any) {
-      console.error("Failed to update profile", err);
-      Swal.fire({
-        icon: "error",
-        title: "Update Failed",
-        text: err.message || "Something went wrong.",
-        background: "#151820",
-        color: "#fff",
-        confirmButtonColor: "#6c63ff",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !currentUser.email) return;
-
-    if (newPassword.length < 6) {
+    if (newPassword !== confirmPassword) {
       Swal.fire({
         icon: "warning",
-        title: "Weak Password",
-        text: "New password must be at least 6 characters.",
-        background: "#151820",
-        color: "#fff",
-        confirmButtonColor: "#6c63ff",
+        title: "Passwords mismatch",
+        text: "New password and confirm password do not match.",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
+        confirmButtonColor: "var(--accent)",
       });
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (newPassword.length < 6) {
       Swal.fire({
-        icon: "error",
-        title: "Mismatch",
-        text: "New password and confirmation do not match.",
-        background: "#151820",
-        color: "#fff",
-        confirmButtonColor: "#6c63ff",
+        icon: "warning",
+        title: "Password too short",
+        text: "New password must be at least 6 characters.",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
+        confirmButtonColor: "var(--accent)",
       });
       return;
     }
 
     setChangingPwd(true);
     try {
-      const credential = EmailAuthProvider.credential(
-        currentUser.email,
-        oldPassword
-      );
-      await reauthenticateWithCredential(currentUser, credential);
-      await updatePassword(currentUser, newPassword);
+      if (currentUser && currentUser.email) {
+        const credential = EmailAuthProvider.credential(
+          currentUser.email,
+          oldPassword
+        );
+        await reauthenticateWithCredential(currentUser, credential);
+        await updatePassword(currentUser, newPassword);
 
-      Swal.fire({
-        icon: "success",
-        title: "Password Updated!",
-        text: "Your security credentials have been updated successfully.",
-        background: "#151820",
-        color: "#fff",
-        confirmButtonColor: "#6c63ff",
-      });
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
 
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+        Swal.fire({
+          icon: "success",
+          title: "Password Updated",
+          text: "Your password has been changed successfully.",
+          background: "var(--bg-surface)",
+          color: "var(--text-primary)",
+          confirmButtonColor: "var(--accent)",
+        });
+      }
     } catch (err: any) {
-      console.error(err);
-      const msg =
-        err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"
-          ? "Incorrect current password. Please try again."
-          : err.message || "Something went wrong.";
+      console.error("Failed to change password", err);
       Swal.fire({
         icon: "error",
-        title: "Security Error",
-        text: msg,
-        background: "#151820",
-        color: "#fff",
-        confirmButtonColor: "#6c63ff",
+        title: "Update Failed",
+        text:
+          err.code === "auth/invalid-credential" ||
+          err.code === "auth/wrong-password"
+            ? "Current password is incorrect."
+            : err.message || "Failed to update password.",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
+        confirmButtonColor: "var(--accent)",
       });
     } finally {
       setChangingPwd(false);
@@ -273,29 +283,30 @@ export default function ProfilePage() {
   };
 
   const handleToggleAutoDelete = async () => {
-    if (!me?._id) return;
-    const newValue = !autoDelete12h;
+    if (!currentUser?.uid) return;
+    const nextVal = !autoDelete12h;
     setTogglingAutoDelete(true);
+
     try {
-      const res = await fetch(`/api/users/${me._id}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/users/${currentUser.uid}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ autoDelete12h: newValue }),
+        body: JSON.stringify({ autoDelete12h: nextVal }),
       });
       const data = await res.json();
       if (data.success) {
-        setAutoDelete12h(newValue);
-        setMe({ ...me, autoDelete12h: newValue });
+        setAutoDelete12h(nextVal);
+        setMe(data.user);
         Swal.fire({
           icon: "success",
-          title: newValue ? "12-Hour Auto-Delete Enabled" : "12-Hour Auto-Delete Disabled",
-          text: newValue
-            ? "Messages older than 12 hours will automatically be deleted for both sides."
-            : "Automatic 12-hour chat history deletion is now disabled.",
-          timer: 2500,
+          title: nextVal ? "12h Auto-Delete Enabled" : "12h Auto-Delete Disabled",
+          text: nextVal
+            ? "Messages older than 12 hours will automatically be wiped for both sides."
+            : "Automatic 12-hour chat cleanup has been turned off.",
+          timer: 2000,
           showConfirmButton: false,
-          background: "#151820",
-          color: "#fff",
+          background: "var(--bg-surface)",
+          color: "var(--text-primary)",
         });
       }
     } catch (err) {
@@ -304,8 +315,8 @@ export default function ProfilePage() {
         icon: "error",
         title: "Update failed",
         text: "Could not save 12-hour auto-delete preference.",
-        background: "#151820",
-        color: "#fff",
+        background: "var(--bg-surface)",
+        color: "var(--text-primary)",
       });
     } finally {
       setTogglingAutoDelete(false);
@@ -316,15 +327,15 @@ export default function ProfilePage() {
     if (!currentUser?.uid) return;
     const result = await Swal.fire({
       title: "Delete ALL Chat History?",
-      text: "This will permanently delete every single message and conversation for BOTH SIDES (both you and the other participants). This action CANNOT be undone.",
+      text: "This will permanently delete all messages and conversations for BOTH SIDES. This cannot be undone.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#222638",
+      cancelButtonColor: "var(--bg-active)",
       confirmButtonText: "Yes, delete for both sides",
       cancelButtonText: "Cancel",
-      background: "#151820",
-      color: "#fff",
+      background: "var(--bg-surface)",
+      color: "var(--text-primary)",
       iconColor: "#ef4444",
     });
 
@@ -338,12 +349,12 @@ export default function ProfilePage() {
         if (data.success) {
           useAppStore.getState().setActiveChatId(null);
           Swal.fire({
-            title: "Chat History Deleted!",
+            title: "Chat History Deleted",
             text: data.message || "All chat conversations have been wiped for both sides.",
             icon: "success",
-            background: "#151820",
-            color: "#fff",
-            confirmButtonColor: "#6c63ff",
+            background: "var(--bg-surface)",
+            color: "var(--text-primary)",
+            confirmButtonColor: "var(--accent)",
           });
         } else {
           throw new Error(data.message || "Failed to delete chat history");
@@ -354,8 +365,8 @@ export default function ProfilePage() {
           title: "Deletion Failed",
           text: err.message || "Something went wrong while deleting history.",
           icon: "error",
-          background: "#151820",
-          color: "#fff",
+          background: "var(--bg-surface)",
+          color: "var(--text-primary)",
         });
       } finally {
         setClearingChats(false);
@@ -371,11 +382,11 @@ export default function ProfilePage() {
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#f59e0b",
-      cancelButtonColor: "#222638",
+      cancelButtonColor: "var(--bg-active)",
       confirmButtonText: "Yes, purge >12h messages",
       cancelButtonText: "Cancel",
-      background: "#151820",
-      color: "#fff",
+      background: "var(--bg-surface)",
+      color: "var(--text-primary)",
       iconColor: "#f59e0b",
     });
 
@@ -388,12 +399,12 @@ export default function ProfilePage() {
         const data = await res.json();
         if (data.success) {
           Swal.fire({
-            title: "Old Messages Purged!",
+            title: "Old Messages Purged",
             text: data.message || "Messages older than 12 hours have been wiped for both sides.",
             icon: "success",
-            background: "#151820",
-            color: "#fff",
-            confirmButtonColor: "#6c63ff",
+            background: "var(--bg-surface)",
+            color: "var(--text-primary)",
+            confirmButtonColor: "var(--accent)",
           });
         }
       } catch (err) {
@@ -404,32 +415,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDeleteAccountClick = () => {
-    Swal.fire({
-      title: "Delete Account?",
-      text: "This action is permanent and cannot be undone. All your chats and media will be erased.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#222638",
-      confirmButtonText: "Yes, delete my account",
-      cancelButtonText: "Cancel",
-      background: "#151820",
-      color: "#fff",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: "Account Deletion",
-          text: "Please contact support or re-authenticate to finalize account termination.",
-          icon: "info",
-          background: "#151820",
-          color: "#fff",
-          confirmButtonColor: "#6c63ff",
-        });
-      }
-    });
-  };
-
   const hasChanges =
     name !== originalData.name ||
     username !== originalData.username ||
@@ -437,9 +422,9 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0d0f14]">
-        <Loader2 className="animate-spin text-accent" size={36} />
-        <span className="text-sm font-medium text-[#8890a6] mt-3">
+      <div className="flex-1 flex flex-col items-center justify-center bg-base">
+        <Loader2 className="animate-spin text-accent" size={32} />
+        <span className="text-xs font-medium text-text-muted mt-3">
           Loading profile...
         </span>
       </div>
@@ -447,312 +432,363 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0f14] overflow-y-auto select-none">
-      {/* Top App Header */}
-      <div className="sticky top-0 bg-[#151820]/90 backdrop-blur-xl border-b border-white/[0.08] px-6 sm:px-10 py-5 z-30 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="flex-1 flex flex-col h-full bg-base overflow-y-auto custom-scrollbar select-none">
+      {/* Top Header */}
+      <div className="sticky top-0 bg-surface/80 backdrop-blur-md border-b border-white/5 px-6 py-4 z-20 flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#8890a6] hover:text-white transition-all active:scale-95 border border-white/5"
+            className="w-9 h-9 rounded-xl bg-elevated/60 hover:bg-elevated flex items-center justify-center text-text-secondary hover:text-text-primary transition-all border border-white/5"
             title="Go back"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              Edit Profile
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent font-semibold border border-accent/20 hidden sm:inline-block">
-                Settings
-              </span>
+            <h1 className="text-lg font-bold text-text-primary tracking-tight">
+              Settings & Profile
             </h1>
-            <p className="text-xs sm:text-sm text-[#8890a6] mt-0.5">
-              Manage your personal info and security preferences
+            <p className="text-xs text-text-muted">
+              Manage your account and preferences
             </p>
           </div>
         </div>
 
+        {/* Quick Save Indicator / Button */}
         {activeTab === "general" && hasChanges && (
-          <div className="hidden sm:flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleDiscard}
-              className="px-4 py-2 text-xs font-semibold text-[#8890a6] hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-all"
+              className="px-3 py-1.5 text-xs font-medium text-text-muted hover:text-text-primary rounded-lg transition-all"
             >
               Discard
             </button>
             <button
-              onClick={handleSave}
-              disabled={saving || !name}
-              className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-accent to-[#8b5cf6] rounded-lg hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-accent/25 disabled:opacity-50"
+              onClick={() => handleSave()}
+              disabled={saving || !name.trim()}
+              className="px-4 py-1.5 text-xs font-bold text-white bg-accent hover:bg-accent-dim rounded-lg transition-all flex items-center gap-1.5 shadow-md shadow-accent/20 disabled:opacity-50"
             >
-              {saving ? (
-                <Loader2 className="animate-spin" size={14} />
-              ) : (
-                <Save size={14} />
-              )}
+              {saving ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />}
               <span>Save</span>
             </button>
           </div>
         )}
       </div>
 
-      {/* Main Content Area */}
-      <div className="max-w-4xl w-full mx-auto px-4 sm:px-8 py-8 space-y-8">
-        {/* Profile Hero Card */}
-        <div className="relative rounded-3xl bg-gradient-to-b from-[#1c2030]/90 to-[#151820]/90 border border-white/[0.08] p-6 sm:p-8 shadow-2xl overflow-hidden backdrop-blur-md">
-          {/* Ambient Glow in background */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-accent/20 blur-3xl pointer-events-none rounded-full" />
-
-          <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
-            {/* Avatar with Ring & Camera Button */}
-            <div className="relative group flex-shrink-0">
-              <div
-                className={`p-1 rounded-full bg-gradient-to-tr from-accent via-[#a78bfa] to-[#ec4899] shadow-xl transition-all duration-300 group-hover:shadow-[0_0_30px_rgba(108,99,255,0.4)] ${
-                  uploadingAvatar ? "animate-pulse brightness-90" : ""
-                }`}
-              >
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-[#151820] bg-[#1c2030] relative flex items-center justify-center">
-                  <Avatar
-                    src={avatar}
-                    alt={name || "User"}
-                    className="!w-full !h-full !text-4xl"
-                  />
-                  {uploadingAvatar && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white">
-                      <Loader2 className="animate-spin text-accent" size={28} />
-                      <span className="text-[10px] font-bold mt-1 text-white/90">
-                        Uploading
-                      </span>
-                    </div>
-                  )}
+      {/* Main Container */}
+      <div className="max-w-2xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Compact Hero Card */}
+        <div className="rounded-2xl bg-surface/70 border border-white/5 p-5 shadow-sm backdrop-blur-sm flex items-center gap-5">
+          {/* Avatar with Camera Overlay */}
+          <div className="relative group flex-shrink-0">
+            <div
+              className={`w-20 h-20 rounded-full overflow-hidden border-2 border-accent/40 relative flex items-center justify-center bg-elevated shadow-inner ${
+                uploadingAvatar ? "opacity-60" : ""
+              }`}
+            >
+              <Avatar
+                src={avatar}
+                alt={name || "User"}
+                className="!w-full !h-full !text-2xl"
+              />
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <Loader2 className="animate-spin text-accent" size={20} />
                 </div>
-              </div>
-
-              {/* Upload Trigger Button */}
-              <label
-                className="absolute bottom-1 right-1 p-3 bg-gradient-to-tr from-accent to-[#8b5cf6] hover:from-[#7c73ff] hover:to-[#9d74ff] text-white rounded-full cursor-pointer shadow-lg transform hover:scale-110 active:scale-95 transition-all duration-200 border-2 border-[#151820] z-20 flex items-center justify-center"
-                title="Change profile picture"
-              >
-                {uploadingAvatar ? (
-                  <Loader2 className="animate-spin" size={18} />
-                ) : (
-                  <Camera size={18} />
-                )}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleAvatarUpload}
-                  disabled={uploadingAvatar}
-                />
-              </label>
+              )}
             </div>
 
-            {/* Profile Info Summary */}
-            <div className="flex-1 text-center sm:text-left space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-center sm:justify-start">
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  {name || "Anonymous User"}
-                </h2>
-                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit mx-auto sm:mx-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Active Account
-                </div>
-              </div>
+            <label
+              className="absolute -bottom-1 -right-1 p-2 bg-accent hover:bg-accent-dim text-white rounded-full cursor-pointer shadow-md transform hover:scale-105 active:scale-95 transition-all border-2 border-surface z-10 flex items-center justify-center"
+              title="Change picture"
+            >
+              {uploadingAvatar ? (
+                <Loader2 className="animate-spin" size={13} />
+              ) : (
+                <Camera size={13} />
+              )}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                disabled={uploadingAvatar}
+              />
+            </label>
+          </div>
 
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs sm:text-sm text-[#8890a6]">
-                <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
-                  <AtSign size={13} className="text-accent" />
-                  <span className="font-mono text-text-primary">
-                    {username ? `@${username}` : "no_username"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
-                  <Mail size={13} className="text-accent" />
-                  <span>{currentUser?.email || "No email"}</span>
-                </div>
-              </div>
+          {/* User Meta */}
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-text-primary truncate">
+                {name || "User"}
+              </h2>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Online
+              </span>
             </div>
+            <p className="text-xs font-mono text-accent truncate">
+              {username ? `@${username}` : "@set_username"}
+            </p>
+            <p className="text-xs text-text-muted truncate">
+              {currentUser?.email || "No email"}
+            </p>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 p-1.5 bg-[#151820] border border-white/[0.08] rounded-2xl">
+        {/* Tab Navigation - Pill Selector */}
+        <div className="flex items-center gap-1.5 p-1 bg-surface/80 border border-white/5 rounded-xl">
           <button
             onClick={() => setActiveTab("general")}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
               activeTab === "general"
-                ? "bg-accent text-white shadow-lg shadow-accent/25"
-                : "text-[#8890a6] hover:text-white hover:bg-white/5"
+                ? "bg-accent text-white shadow-sm"
+                : "text-text-secondary hover:text-text-primary hover:bg-white/5"
             }`}
           >
-            <User size={16} />
-            <span>General Info</span>
+            <User size={14} />
+            <span>Profile</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("privacy")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === "privacy"
+                ? "bg-accent text-white shadow-sm"
+                : "text-text-secondary hover:text-text-primary hover:bg-white/5"
+            }`}
+          >
+            <Timer size={14} />
+            <span>Chat Privacy</span>
           </button>
 
           <button
             onClick={() => setActiveTab("security")}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
               activeTab === "security"
-                ? "bg-accent text-white shadow-lg shadow-accent/25"
-                : "text-[#8890a6] hover:text-white hover:bg-white/5"
+                ? "bg-accent text-white shadow-sm"
+                : "text-text-secondary hover:text-text-primary hover:bg-white/5"
             }`}
           >
-            <Lock size={16} />
-            <span>Security & Password</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("danger")}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-              activeTab === "danger"
-                ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                : "text-[#8890a6] hover:text-red-400 hover:bg-red-500/5"
-            }`}
-          >
-            <AlertTriangle size={16} />
-            <span>Account Actions</span>
+            <Lock size={14} />
+            <span>Security</span>
           </button>
         </div>
 
-        {/* TAB 1: General Info */}
+        {/* TAB 1: Profile Info */}
         {activeTab === "general" && (
           <form
             onSubmit={handleSave}
-            className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-6 shadow-xl animate-fadeIn"
+            className="rounded-2xl bg-surface/60 border border-white/5 p-5 sm:p-6 space-y-5 animate-fadeIn"
           >
-            <div className="border-b border-white/5 pb-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <User size={18} className="text-accent" />
-                Personal Information
-              </h3>
-              <p className="text-xs text-[#8890a6] mt-1">
-                Update how your name and handle appear across Bondly
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
               {/* Full Name */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#8890a6] uppercase tracking-wider flex items-center gap-1.5">
-                  <User size={14} className="text-accent" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                  <User size={13} className="text-accent" />
                   Full Name <span className="text-red-400">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                    required
-                    className="w-full h-12 px-4 rounded-xl bg-[#1c2030] border border-white/10 text-white placeholder-[#545d72] text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter your name"
+                  required
+                  className="w-full h-11 px-3.5 rounded-xl bg-elevated/70 border border-white/5 text-text-primary placeholder-text-muted text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+                />
               </div>
 
               {/* Username */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#8890a6] uppercase tracking-wider flex items-center gap-1.5">
-                  <AtSign size={14} className="text-accent" />
-                  Username
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                  <AtSign size={13} className="text-accent" />
+                  Username Handle
                 </label>
                 <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted text-sm font-mono">
+                    @
+                  </span>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) =>
-                      setUsername(e.target.value.toLowerCase().replace(/\s+/g, "_"))
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
                     }
-                    placeholder="e.g. johndoe"
-                    className="w-full h-12 px-4 rounded-xl bg-[#1c2030] border border-white/10 text-white placeholder-[#545d72] text-sm font-mono focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    placeholder="username"
+                    className="w-full h-11 pl-8 pr-4 rounded-xl bg-elevated/70 border border-white/5 text-text-primary placeholder-text-muted text-sm font-mono focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
                   />
                 </div>
               </div>
 
               {/* Email Address (Read-only) */}
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-[#8890a6] uppercase tracking-wider flex items-center gap-1.5">
-                    <Mail size={14} className="text-accent" />
-                    Email Address
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                    <Mail size={13} className="text-accent" />
+                    Email
                   </label>
-                  <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                    <ShieldCheck size={13} /> Verified
+                  <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                    <ShieldCheck size={12} /> Verified
                   </span>
                 </div>
-                <div className="relative">
-                  <input
-                    type="email"
-                    value={currentUser?.email || ""}
-                    disabled
-                    className="w-full h-12 px-4 rounded-xl bg-[#1c2030]/60 border border-white/5 text-[#8890a6] text-sm cursor-not-allowed select-none"
-                  />
-                </div>
-                <p className="text-[11px] text-[#545d72]">
-                  Your email address is managed via your Firebase Authentication login.
-                </p>
+                <input
+                  type="email"
+                  value={currentUser?.email || ""}
+                  disabled
+                  className="w-full h-11 px-3.5 rounded-xl bg-elevated/30 border border-white/5 text-text-muted text-sm cursor-not-allowed select-none"
+                />
               </div>
             </div>
 
-            {/* Actions Bar */}
-            <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="min-h-[20px]">
-                {success && (
-                  <div className="flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-3.5 py-1.5 rounded-full text-xs font-semibold animate-fadeIn">
-                    <Check size={14} />
-                    <span>Changes saved successfully!</span>
-                  </div>
+            {/* Save Buttons */}
+            <div className="pt-3 border-t border-white/5 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={handleDiscard}
+                disabled={!hasChanges || saving}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                Discard
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !name.trim()}
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-md shadow-accent/20"
+              >
+                {saving ? (
+                  <Loader2 className="animate-spin" size={14} />
+                ) : (
+                  <Save size={14} />
                 )}
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={handleDiscard}
-                  disabled={!hasChanges || saving}
-                  className="flex-1 sm:flex-initial px-5 py-3 rounded-xl text-xs font-semibold text-[#8890a6] hover:text-white bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
-                >
-                  <RotateCcw size={14} />
-                  <span>Discard</span>
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving || !name}
-                  className="flex-1 sm:flex-initial px-8 py-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-accent to-[#8b5cf6] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-accent/20 active:scale-98 min-w-[150px]"
-                >
-                  {saving ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <Save size={16} />
-                  )}
-                  <span>Save Changes</span>
-                </button>
-              </div>
+                <span>Save Changes</span>
+              </button>
             </div>
           </form>
         )}
 
-        {/* TAB 2: Security & Password */}
+        {/* TAB 2: Chat Privacy & Auto-Delete */}
+        {activeTab === "privacy" && (
+          <div className="space-y-4 animate-fadeIn">
+            {/* 12-Hour Auto-Delete Toggle */}
+            <div className="rounded-2xl bg-surface/60 border border-white/5 p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent flex-shrink-0">
+                    <Timer size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-text-primary">
+                        12-Hour Auto-Delete
+                      </h4>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          autoDelete12h
+                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+                            : "bg-white/5 text-text-muted border border-white/5"
+                        }`}
+                      >
+                        {autoDelete12h ? "ON" : "OFF"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Messages automatically delete after 12 hours for <span className="text-text-primary">both sides</span>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Switch */}
+                <button
+                  type="button"
+                  onClick={handleToggleAutoDelete}
+                  disabled={togglingAutoDelete}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                    autoDelete12h ? "bg-accent" : "bg-elevated"
+                  }`}
+                  role="switch"
+                  aria-checked={autoDelete12h}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      autoDelete12h ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {autoDelete12h && (
+                <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 flex items-center gap-2 text-xs text-accent">
+                  <Clock size={14} className="flex-shrink-0" />
+                  <span>Auto-delete active: messages older than 12h are cleaned continuously for both sides.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Purge Options */}
+            <div className="rounded-2xl bg-surface/60 border border-white/5 p-5 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
+                  <Trash2 size={18} />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-text-primary">
+                    Clear Chat History
+                  </h4>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Permanently wipe chat history for <span className="text-text-primary">both sides</span>. Contacts will remain in your sidebar.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleDelete12hChats}
+                  disabled={clearingChats}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Clock size={13} />
+                  <span>Purge &gt;12h History</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDeleteAllChats}
+                  disabled={clearingChats}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-red-600 hover:bg-red-500 border border-red-500/30 transition-all flex items-center gap-1.5 shadow-sm shadow-red-500/20 disabled:opacity-50"
+                >
+                  {clearingChats ? (
+                    <Loader2 className="animate-spin" size={13} />
+                  ) : (
+                    <Trash2 size={13} />
+                  )}
+                  <span>Delete All Chats (Both Sides)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: Security */}
         {activeTab === "security" && (
           <form
             onSubmit={handlePasswordChange}
-            className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-6 shadow-xl animate-fadeIn"
+            className="rounded-2xl bg-surface/60 border border-white/5 p-5 sm:p-6 space-y-4 animate-fadeIn"
           >
-            <div className="border-b border-white/5 pb-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <KeyRound size={18} className="text-accent" />
+            <div className="border-b border-white/5 pb-3">
+              <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                <KeyRound size={15} className="text-accent" />
                 Change Password
               </h3>
-              <p className="text-xs text-[#8890a6] mt-1">
-                Ensure your account stays secure with a strong password
-              </p>
             </div>
 
-            <div className="space-y-4 max-w-xl">
+            <div className="space-y-3">
               {/* Current Password */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#8890a6] uppercase tracking-wider">
-                  Current Password <span className="text-red-400">*</span>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  Current Password
                 </label>
                 <div className="relative">
                   <input
@@ -761,22 +797,22 @@ export default function ProfilePage() {
                     onChange={(e) => setOldPassword(e.target.value)}
                     placeholder="Enter current password"
                     required
-                    className="w-full h-12 pl-4 pr-12 rounded-xl bg-[#1c2030] border border-white/10 text-white placeholder-[#545d72] text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-elevated/70 border border-white/5 text-text-primary placeholder-text-muted text-sm focus:outline-none focus:border-accent"
                   />
                   <button
                     type="button"
                     onClick={() => setShowOldPwd(!showOldPwd)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8890a6] hover:text-white p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1"
                   >
-                    {showOldPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showOldPwd ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </div>
 
               {/* New Password */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#8890a6] uppercase tracking-wider">
-                  New Password <span className="text-red-400">*</span>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  New Password
                 </label>
                 <div className="relative">
                   <input
@@ -785,22 +821,22 @@ export default function ProfilePage() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Minimum 6 characters"
                     required
-                    className="w-full h-12 pl-4 pr-12 rounded-xl bg-[#1c2030] border border-white/10 text-white placeholder-[#545d72] text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-elevated/70 border border-white/5 text-text-primary placeholder-text-muted text-sm focus:outline-none focus:border-accent"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPwd(!showNewPwd)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8890a6] hover:text-white p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1"
                   >
-                    {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showNewPwd ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </div>
 
               {/* Confirm Password */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#8890a6] uppercase tracking-wider">
-                  Confirm New Password <span className="text-red-400">*</span>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  Confirm New Password
                 </label>
                 <div className="relative">
                   <input
@@ -809,20 +845,20 @@ export default function ProfilePage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter new password"
                     required
-                    className="w-full h-12 pl-4 pr-12 rounded-xl bg-[#1c2030] border border-white/10 text-white placeholder-[#545d72] text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-elevated/70 border border-white/5 text-text-primary placeholder-text-muted text-sm focus:outline-none focus:border-accent"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPwd(!showConfirmPwd)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8890a6] hover:text-white p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1"
                   >
-                    {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showConfirmPwd ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-white/10">
+            <div className="pt-3 border-t border-white/5 flex justify-end">
               <button
                 type="submit"
                 disabled={
@@ -831,168 +867,17 @@ export default function ProfilePage() {
                   !newPassword ||
                   newPassword.length < 6
                 }
-                className="px-6 py-3 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-lg shadow-accent/20"
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shadow-md shadow-accent/20"
               >
                 {changingPwd ? (
-                  <Loader2 className="animate-spin" size={16} />
+                  <Loader2 className="animate-spin" size={14} />
                 ) : (
-                  <Lock size={16} />
+                  <Lock size={14} />
                 )}
                 <span>Update Password</span>
               </button>
             </div>
           </form>
-        )}
-
-        {/* TAB 3: Danger Zone & Privacy Settings */}
-        {activeTab === "danger" && (
-          <div className="space-y-6 animate-fadeIn">
-            {/* Header banner */}
-            <div className="rounded-3xl bg-gradient-to-r from-red-500/[0.08] via-amber-500/[0.04] to-transparent border border-red-500/20 p-6 sm:p-8 shadow-xl">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
-                  <AlertTriangle size={24} />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-red-400">
-                    Chat Privacy & Danger Zone
-                  </h3>
-                  <p className="text-xs sm:text-sm text-[#8890a6] leading-relaxed">
-                    Manage one-click chat history deletion, 12-hour automated wipe settings, and permanent account actions. Deletions apply to <strong className="text-white">both sides</strong> (both sender and receiver).
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 1: 12-Hour Auto-Delete Chat History Toggle */}
-            <div className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-4 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent flex-shrink-0 mt-0.5">
-                    <Timer size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-white">
-                        12-Hour Auto-Delete Chat History
-                      </h4>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                          autoDelete12h
-                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                            : "bg-white/5 text-[#8890a6] border border-white/10"
-                        }`}
-                      >
-                        {autoDelete12h ? "Active (12h)" : "Disabled"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#8890a6] mt-1 max-w-xl">
-                      After every 12 hours, messages will automatically disappear and be permanently deleted for <span className="text-white font-medium">both sides</span> across all your conversations.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Toggle switch button */}
-                <button
-                  type="button"
-                  onClick={handleToggleAutoDelete}
-                  disabled={togglingAutoDelete}
-                  className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
-                    autoDelete12h ? "bg-accent" : "bg-[#222638]"
-                  }`}
-                  role="switch"
-                  aria-checked={autoDelete12h}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                      autoDelete12h ? "translate-x-7" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Status banner */}
-              {autoDelete12h && (
-                <div className="p-3.5 rounded-2xl bg-accent/5 border border-accent/20 flex items-center gap-3 text-xs text-accent">
-                  <Clock size={16} className="flex-shrink-0" />
-                  <span>
-                    Auto-cleanup is active. Messages older than 12 hours are regularly wiped for both sides in real time.
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Feature 2: One-Click Delete All Chat History (Both Sides) */}
-            <div className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-4 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0 mt-0.5">
-                    <Trash2 size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">
-                      One-Click Delete All Chat History
-                    </h4>
-                    <p className="text-xs text-[#8890a6] mt-1 max-w-xl">
-                      Instantly and permanently wipe all messages and conversations for <span className="text-white font-medium">both sides</span> (all chat participants).
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 sm:self-center">
-                  <button
-                    type="button"
-                    onClick={handleDelete12hChats}
-                    disabled={clearingChats}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500 border border-amber-500/20 transition-all flex items-center justify-center gap-2 whitespace-nowrap active:scale-95 disabled:opacity-50"
-                  >
-                    <Clock size={14} />
-                    <span>Purge &gt;12h History</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleDeleteAllChats}
-                    disabled={clearingChats}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 border border-red-500/30 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-lg shadow-red-500/20 active:scale-95 disabled:opacity-50"
-                  >
-                    {clearingChats ? (
-                      <Loader2 className="animate-spin" size={14} />
-                    ) : (
-                      <Trash2 size={14} />
-                    )}
-                    <span>Delete All Chats (Both Sides)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 3: Delete Account */}
-            <div className="rounded-3xl bg-[#151820] border border-white/[0.08] p-6 sm:p-8 space-y-4 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#8890a6] flex-shrink-0 mt-0.5">
-                    <AlertTriangle size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Delete this account</h4>
-                    <p className="text-xs text-[#8890a6] mt-1">
-                      Erase your profile, credentials, and all account association permanently.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDeleteAccountClick}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 border border-red-500/20 transition-all flex items-center justify-center gap-2 whitespace-nowrap active:scale-95 self-start sm:self-center"
-                >
-                  <Trash2 size={14} />
-                  <span>Delete Account</span>
-                </button>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </div>
