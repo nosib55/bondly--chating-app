@@ -324,11 +324,12 @@ export const ChatSidebar = () => {
                       e.stopPropagation();
                       const result = await Swal.fire({
                         title: "Delete chat?",
-                        text: `This will remove all messages with ${user.name}.`,
+                        text: `This will permanently remove all messages with ${user.name} for both sides.`,
                         icon: "warning",
                         showCancelButton: true,
                         confirmButtonColor: "#ef4444",
                         cancelButtonColor: "var(--bg-active)",
+                        confirmButtonText: "Delete for both",
                         background: "var(--bg-surface)",
                         color: "var(--text-primary)"
                       });
@@ -338,7 +339,7 @@ export const ChatSidebar = () => {
                            router.push('/');
                            setActiveChatId(null);
                            Swal.fire({
-                             title: "Deleted",
+                             title: "Deleted for both sides",
                              icon: "success",
                              timer: 1500,
                              showConfirmButton: false,

@@ -20,12 +20,12 @@ export const ChatHeader = ({ user, chat = null }) => {
     
     const result = await Swal.fire({
       title: "Delete chat history?",
-      text: "This will permanently remove all messages with this person. This action cannot be undone.",
+      text: "This will permanently remove all messages for both sides. This action cannot be undone.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "var(--accent)",
       cancelButtonColor: "var(--bg-active)",
-      confirmButtonText: "Yes, delete it",
+      confirmButtonText: "Yes, delete for both sides",
       background: "var(--bg-surface)",
       color: "var(--text-primary)",
       iconColor: "#ef4444"
@@ -40,7 +40,7 @@ export const ChatHeader = ({ user, chat = null }) => {
         if (data.success) {
           Swal.fire({
             title: "Deleted!",
-            text: "Your conversation has been wiped.",
+            text: "Chat history has been wiped for both sides.",
             icon: "success",
             background: "var(--bg-surface)",
             color: "var(--text-primary)",
