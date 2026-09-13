@@ -29,20 +29,12 @@ export async function DELETE(req: Request) {
       $or: [{ sender: me._id }, { receiver: me._id }],
     };
 
-    if (mode === "12h") {
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-      filter.createdAt = { $lt: twelveHoursAgo };
-    }
-
     const result = await Message.deleteMany(filter);
 
     return NextResponse.json({
       success: true,
       deletedCount: result.deletedCount,
-      message:
-        mode === "12h"
-          ? `Deleted ${result.deletedCount} messages older than 12 hours for both sides.`
-          : `All chat history (${result.deletedCount} messages) permanently deleted for both sides.`,
+      message: `All chat history (${result.deletedCount} messages) permanently deleted for both sides.`,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -51,39 +43,9 @@ export async function DELETE(req: Request) {
 
 /**
  * POST /api/messages/cleanup
- * Checks and cleans up messages older than 12 hours if autoDelete12h is enabled for the user
+ * Auto-delete is disabled across the app
  */
-export async function POST(req: Request) {
-  try {
-    const { uid } = await req.json();
-
-    if (!uid) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
-    }
-
-    await connectDB();
-
-    const me = (await User.findOne({ firebaseUid: uid })) as any;
-    if (!me) {
-      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
-    }
-
-    if (me.autoDelete12h) {
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-      const result = await Message.deleteMany({
-        $or: [{ sender: me._id }, { receiver: me._id }],
-        createdAt: { $lt: twelveHoursAgo },
-      });
-
-      return NextResponse.json({
-        success: true,
-        autoDeleted: true,
-        deletedCount: result.deletedCount,
-      });
-    }
-
-    return NextResponse.json({ success: true, autoDeleted: false });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
+export async function POST() {
+  return NextResponse.json({ success: true, autoDeleted: false, message: "Auto-delete is disabled" });
 }
+

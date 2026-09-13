@@ -27,17 +27,6 @@ export async function GET(
 
     const peer = (await User.findById(peerUserId)) as any;
 
-    // If either party has 12h auto-delete enabled, purge messages older than 12 hours
-    if (sender?.autoDelete12h || peer?.autoDelete12h) {
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-      await Message.deleteMany({
-        $or: [
-          { sender: sender._id, receiver: peerUserId },
-          { sender: peerUserId, receiver: sender._id },
-        ],
-        createdAt: { $lt: twelveHoursAgo },
-      });
-    }
 
     // Fetch messages where either { sender->peer } OR { peer->sender }
     const messages = await Message.find({

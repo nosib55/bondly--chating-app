@@ -21,8 +21,6 @@ import {
   Save,
   RotateCcw,
   Trash2,
-  Clock,
-  Timer,
   CheckCircle2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -52,9 +50,6 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  // Auto-delete state
-  const [autoDelete12h, setAutoDelete12h] = useState(false);
-  const [togglingAutoDelete, setTogglingAutoDelete] = useState(false);
   const [clearingChats, setClearingChats] = useState(false);
 
   // Original state for discard functionality
@@ -92,7 +87,6 @@ export default function ProfilePage() {
             setName(initialName);
             setUsername(initialUsername);
             setAvatar(initialAvatar);
-            setAutoDelete12h(!!found.autoDelete12h);
             setOriginalData({
               name: initialName,
               username: initialUsername,
@@ -282,47 +276,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleToggleAutoDelete = async () => {
-    if (!currentUser?.uid) return;
-    const nextVal = !autoDelete12h;
-    setTogglingAutoDelete(true);
-
-    try {
-      const res = await fetch(`/api/users/${currentUser.uid}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ autoDelete12h: nextVal }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setAutoDelete12h(nextVal);
-        setMe(data.user);
-        Swal.fire({
-          icon: "success",
-          title: nextVal ? "12h Auto-Delete Enabled" : "12h Auto-Delete Disabled",
-          text: nextVal
-            ? "Messages older than 12 hours will automatically be wiped for both sides."
-            : "Automatic 12-hour chat cleanup has been turned off.",
-          timer: 2000,
-          showConfirmButton: false,
-          background: "var(--bg-surface)",
-          color: "var(--text-primary)",
-        });
-      }
-    } catch (err) {
-      console.error("Failed to update auto-delete setting", err);
-      Swal.fire({
-        icon: "error",
-        title: "Update failed",
-        text: "Could not save 12-hour auto-delete preference.",
-        background: "var(--bg-surface)",
-        color: "var(--text-primary)",
-      });
-    } finally {
-      setTogglingAutoDelete(false);
-    }
-  };
-
   const handleDeleteAllChats = async () => {
     if (!currentUser?.uid) return;
     const result = await Swal.fire({
@@ -368,47 +321,6 @@ export default function ProfilePage() {
           background: "var(--bg-surface)",
           color: "var(--text-primary)",
         });
-      } finally {
-        setClearingChats(false);
-      }
-    }
-  };
-
-  const handleDelete12hChats = async () => {
-    if (!currentUser?.uid) return;
-    const result = await Swal.fire({
-      title: "Purge >12h Old History?",
-      text: "All messages older than 12 hours across all conversations will be permanently deleted for both sides.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#f59e0b",
-      cancelButtonColor: "var(--bg-active)",
-      confirmButtonText: "Yes, purge >12h messages",
-      cancelButtonText: "Cancel",
-      background: "var(--bg-surface)",
-      color: "var(--text-primary)",
-      iconColor: "#f59e0b",
-    });
-
-    if (result.isConfirmed) {
-      setClearingChats(true);
-      try {
-        const res = await fetch(`/api/messages?uid=${currentUser.uid}&mode=12h`, {
-          method: "DELETE",
-        });
-        const data = await res.json();
-        if (data.success) {
-          Swal.fire({
-            title: "Old Messages Purged",
-            text: data.message || "Messages older than 12 hours have been wiped for both sides.",
-            icon: "success",
-            background: "var(--bg-surface)",
-            color: "var(--text-primary)",
-            confirmButtonColor: "var(--accent)",
-          });
-        }
-      } catch (err) {
-        console.error(err);
       } finally {
         setClearingChats(false);
       }
@@ -559,8 +471,8 @@ export default function ProfilePage() {
                 : "text-text-secondary hover:text-text-primary hover:bg-white/5"
             }`}
           >
-            <Timer size={14} />
-            <span>Chat Privacy</span>
+            <ShieldCheck size={14} />
+            <span>Chat History</span>
           </button>
 
           <button
@@ -667,66 +579,10 @@ export default function ProfilePage() {
           </form>
         )}
 
-        {/* TAB 2: Chat Privacy & Auto-Delete */}
+        {/* TAB 2: Chat History */}
         {activeTab === "privacy" && (
           <div className="space-y-4 animate-fadeIn">
-            {/* 12-Hour Auto-Delete Toggle */}
-            <div className="rounded-2xl bg-surface/60 border border-white/5 p-5 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent flex-shrink-0">
-                    <Timer size={18} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-text-primary">
-                        12-Hour Auto-Delete
-                      </h4>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                          autoDelete12h
-                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-                            : "bg-white/5 text-text-muted border border-white/5"
-                        }`}
-                      >
-                        {autoDelete12h ? "ON" : "OFF"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      Messages automatically delete after 12 hours for <span className="text-text-primary">both sides</span>.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Switch */}
-                <button
-                  type="button"
-                  onClick={handleToggleAutoDelete}
-                  disabled={togglingAutoDelete}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
-                    autoDelete12h ? "bg-accent" : "bg-elevated"
-                  }`}
-                  role="switch"
-                  aria-checked={autoDelete12h}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                      autoDelete12h ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {autoDelete12h && (
-                <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 flex items-center gap-2 text-xs text-accent">
-                  <Clock size={14} className="flex-shrink-0" />
-                  <span>Auto-delete active: messages older than 12h are cleaned continuously for both sides.</span>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Purge Options */}
+            {/* Clear Chat History Option */}
             <div className="rounded-2xl bg-surface/60 border border-white/5 p-5 space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
@@ -742,17 +598,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleDelete12hChats}
-                  disabled={clearingChats}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <Clock size={13} />
-                  <span>Purge &gt;12h History</span>
-                </button>
-
+              <div className="pt-2">
                 <button
                   type="button"
                   onClick={handleDeleteAllChats}
