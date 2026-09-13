@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Analytics } from '@vercel/analytics/react';
 import { NotificationManager } from "../components/NotificationManager";
+import { ThemeManager } from "../components/theme/ThemeManager";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -14,6 +15,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <body>
+        <ThemeManager />
         <NotificationManager />
         {children}
         <Analytics />

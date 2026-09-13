@@ -34,10 +34,10 @@ export default function ChatLayout({ children }) {
     );
   }
 
-  const isProfile = pathname === "/profile";
   const isRoot = pathname === "/";
+
   // On root path, never apply chat-open so the sidebar is always shown on mobile
-  const shellClass = `chat-shell ${(!isRoot && (activeChatId || isProfile)) ? "chat-open" : ""}`;
+  const shellClass = `chat-shell ${(!isRoot && activeChatId) ? "chat-open" : ""}`;
 
   // Mobile layout wrapper config 
   return (

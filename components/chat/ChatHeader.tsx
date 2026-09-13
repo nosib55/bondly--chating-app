@@ -4,9 +4,10 @@ import React from "react";
 import { Avatar } from "../ui/Avatar";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "../../store/useAppStore";
-import { Phone, Video, Info, ChevronLeft, Lock, Trash2, Unlock } from "lucide-react";
+import { Phone, Video, Info, ChevronLeft, Lock, Trash2, Unlock, Palette } from "lucide-react";
 import { useAuth } from "../../features/auth/hooks/useAuth";
 import Swal from "sweetalert2";
+import { ThemeModal } from "./ThemeModal";
 
 export const ChatHeader = ({ user, chat = null }) => {
   const router = useRouter();
@@ -14,6 +15,7 @@ export const ChatHeader = ({ user, chat = null }) => {
   const { currentUser } = useAuth();
   
   const [isLocked, setIsLocked] = React.useState(user.locked || false);
+  const [themeModalOpen, setThemeModalOpen] = React.useState(false);
 
   const handleDeleteChat = async () => {
     if (!currentUser) return;
@@ -111,6 +113,13 @@ export const ChatHeader = ({ user, chat = null }) => {
         </div>
       </div>
       <div className="chat-header-actions">
+        <button 
+          className="icon-btn hover:text-accent transition-colors" 
+          onClick={() => setThemeModalOpen(true)} 
+          title="Customize Theme & Wallpaper"
+        >
+          <Palette size={18} />
+        </button>
         <button className="icon-btn" onClick={handleToggleLock} title={isLocked ? "Unlock Chat" : "Lock Chat"}>
           {isLocked ? <Unlock size={18} className="text-accent" /> : <Lock size={18} />}
         </button>
@@ -121,6 +130,11 @@ export const ChatHeader = ({ user, chat = null }) => {
           <Info size={18} />
         </button>
       </div>
+
+      <ThemeModal 
+        isOpen={themeModalOpen} 
+        onClose={() => setThemeModalOpen(false)} 
+      />
     </div>
   );
 };

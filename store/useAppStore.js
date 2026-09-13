@@ -29,4 +29,14 @@ export const useAppStore = create((set) => ({
     set((s) => ({
       typingUsers: { ...s.typingUsers, [chatId]: isTyping },
     })),
+
+  // Theme & Wallpaper Customization
+  themeId: "violet",
+  setThemeId: (id) => set({ themeId: id }),
+  wallpaperId: "default",
+  setWallpaperId: (id) => set({ wallpaperId: id }),
+  customWallpaperUrl: "",
+  setCustomWallpaperUrl: (url) => set({ customWallpaperUrl: url }),
+  wallpaperDim: 40,
+  setWallpaperDim: (dim) => set({ wallpaperDim: dim }),
 }));

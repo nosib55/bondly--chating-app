@@ -1,5 +1,10 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export interface IReaction {
+  emoji: string;
+  userId: string;
+}
+
 export interface IMessage extends Document {
   chatId?: string; // Opt for simple sender/receiver or structured conversations
   sender: mongoose.Types.ObjectId;
@@ -7,6 +12,7 @@ export interface IMessage extends Document {
   text: string;
   image?: string;
   read: boolean;
+  reactions?: IReaction[];
   createdAt: Date;
 }
 
@@ -17,6 +23,12 @@ const MessageSchema: Schema = new Schema(
     text: { type: String, required: true },
     image: { type: String },
     read: { type: Boolean, default: false },
+    reactions: [
+      {
+        emoji: { type: String, required: true },
+        userId: { type: String, required: true },
+      },
+    ],
   },
   { timestamps: true }
 );

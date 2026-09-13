@@ -90,7 +90,7 @@ export async function POST(
 }
 
 /**
- * PATCH: Mark messages from peer as read
+ * PATCH: Mark messages from peer as read OR toggle message reaction
  */
 export async function PATCH(
   req: Request,
@@ -98,7 +98,8 @@ export async function PATCH(
 ) {
   try {
     const { chatId: peerUserId } = await params;
-    const { uid: myFirebaseUid } = await req.json();
+    const body = await req.json();
+    const { uid: myFirebaseUid, messageId, emoji } = body;
 
     if (!myFirebaseUid) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
@@ -109,7 +110,37 @@ export async function PATCH(
     const me = await User.findOne({ firebaseUid: myFirebaseUid });
     if (!me) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
 
-    // Mark all messages WHERE sender = peerUserId AND receiver = me._id AND read = false
+    // Handle reaction toggle
+    if (messageId && emoji) {
+      const msg = await Message.findById(messageId);
+      if (!msg) {
+        return NextResponse.json({ success: false, message: "Message not found" }, { status: 404 });
+      }
+
+      const reactions = msg.reactions || [];
+      const userIdx = reactions.findIndex(
+        (r: any) => r.userId === me.firebaseUid || r.userId === me._id.toString()
+      );
+
+      if (userIdx > -1) {
+        if (reactions[userIdx].emoji === emoji) {
+          // Remove reaction if already reacted with same emoji
+          reactions.splice(userIdx, 1);
+        } else {
+          // Switch to new reaction emoji
+          reactions[userIdx].emoji = emoji;
+        }
+      } else {
+        reactions.push({ emoji, userId: me.firebaseUid });
+      }
+
+      msg.reactions = reactions;
+      await msg.save();
+
+      return NextResponse.json({ success: true, reactions: msg.reactions, message: msg });
+    }
+
+    // Otherwise mark all messages WHERE sender = peerUserId AND receiver = me._id AND read = false
     await Message.updateMany(
       { sender: peerUserId, receiver: me._id, read: false },
       { $set: { read: true } }
@@ -122,7 +153,7 @@ export async function PATCH(
 }
 
 /**
- * DELETE: Delete entire chat history with peer
+ * DELETE: Delete a single message (via ?messageId=...) OR entire chat history
  */
 export async function DELETE(
   req: Request,
@@ -132,6 +163,7 @@ export async function DELETE(
     const { chatId: peerUserId } = await params;
     const { searchParams } = new URL(req.url);
     const myUid = searchParams.get("uid");
+    const messageId = searchParams.get("messageId");
 
     if (!myUid) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
@@ -142,12 +174,24 @@ export async function DELETE(
     const me = await User.findOne({ firebaseUid: myUid });
     if (!me) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
 
+    // Single message delete
+    if (messageId) {
+      await Message.findOneAndDelete({
+        _id: messageId,
+        $or: [
+          { sender: me._id, receiver: peerUserId },
+          { sender: peerUserId, receiver: me._id },
+        ],
+      });
+      return NextResponse.json({ success: true, message: "Message deleted", deletedMessageId: messageId });
+    }
+
     // Delete all messages where {me, peer} are {sender, receiver} or vice versa
     await Message.deleteMany({
       $or: [
         { sender: me._id, receiver: peerUserId },
-        { sender: peerUserId, receiver: me._id }
-      ]
+        { sender: peerUserId, receiver: me._id },
+      ],
     });
 
     return NextResponse.json({ success: true, message: "Conversation deleted" });
