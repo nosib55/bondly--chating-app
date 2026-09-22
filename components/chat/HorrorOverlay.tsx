@@ -116,13 +116,6 @@ export const HorrorOverlay: React.FC<HorrorOverlayProps> = ({ active, onFinished
     // Trigger spine-chilling horror sound
     playSpookyHorrorSound();
 
-    // Mobile hardware vibration for maximum scare (Android & supported mobile browsers)
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try {
-        navigator.vibrate([100, 60, 200, 50, 350]);
-      } catch {}
-    }
-
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       onFinished?.();
