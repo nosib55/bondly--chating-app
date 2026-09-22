@@ -168,11 +168,14 @@ export const ChatWindow = ({ user }) => {
         // Swap temp message with real DB message while keeping stable clientMsgId
         setMessages((prev: any) => 
           prev.map((m: any) => 
-            (m._id === tempId || (m.temp && m.text === text))
+            (m._id === tempId || (m.temp && (m.text === text || (imageUrl && m.image === imageUrl))))
               ? { ...data.message, clientMsgId: tempId }
               : m
           )
         );
+      } else {
+        console.error("Failed to save message:", data);
+        alert(data.message || data.error || "Failed to send message.");
       }
     } catch (err) {
       console.error("Failed to send message", err);
