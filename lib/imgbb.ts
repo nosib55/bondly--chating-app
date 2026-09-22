@@ -20,7 +20,7 @@ function fileToBase64(file: File): Promise<string> {
  * @returns The permanent HTTPS URL of the uploaded image
  */
 export async function uploadToImgBB(file: File): Promise<string> {
-  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY || "aea8ec36383d51ba81c31b1224eae84f";
 
   if (!apiKey) {
     throw new Error(
