@@ -85,11 +85,43 @@ export function playSpookyHorrorSound() {
 export const HorrorOverlay: React.FC<HorrorOverlayProps> = ({ active, onFinished }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Auto-unlock audio on mobile first touch/click
+  useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const tempCtx = new AudioCtx();
+          if (tempCtx.state === "suspended") {
+            tempCtx.resume();
+          }
+        }
+      } catch {}
+      window.removeEventListener("touchstart", unlockAudio);
+      window.removeEventListener("click", unlockAudio);
+    };
+
+    window.addEventListener("touchstart", unlockAudio, { passive: true, once: true });
+    window.addEventListener("click", unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener("touchstart", unlockAudio);
+      window.removeEventListener("click", unlockAudio);
+    };
+  }, []);
+
   useEffect(() => {
     if (!active) return;
 
     // Trigger spine-chilling horror sound
     playSpookyHorrorSound();
+
+    // Mobile hardware vibration for maximum scare (Android & supported mobile browsers)
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate([100, 60, 200, 50, 350]);
+      } catch {}
+    }
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
