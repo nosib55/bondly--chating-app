@@ -7,114 +7,11 @@ interface HorrorOverlayProps {
   onFinished?: () => void;
 }
 
-/**
- * Synthesizes a spine-chilling horror sound using Web Audio API
- * Dissonant tritone drone + sudden high-pitch ghost screech
- */
-export function playSpookyHorrorSound() {
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-
-    if (ctx.state === "suspended") {
-      ctx.resume();
-    }
-
-    // 1. Deep demonic sub-bass drone with tritone dissonance
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const droneGain = ctx.createGain();
-
-    osc1.type = "sawtooth";
-    osc1.frequency.setValueAtTime(65, ctx.currentTime);
-    osc1.frequency.exponentialRampToValueAtTime(32, ctx.currentTime + 2.2);
-
-    osc2.type = "triangle";
-    osc2.frequency.setValueAtTime(92.5, ctx.currentTime); // Tritone interval
-    osc2.frequency.exponentialRampToValueAtTime(46, ctx.currentTime + 2.2);
-
-    // 2. High-pitch eerie ghost screech / stinger
-    const screamOsc = ctx.createOscillator();
-    const screamGain = ctx.createGain();
-    screamOsc.type = "sawtooth";
-    screamOsc.frequency.setValueAtTime(800, ctx.currentTime);
-    screamOsc.frequency.exponentialRampToValueAtTime(1700, ctx.currentTime + 0.12);
-    screamOsc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 1.4);
-
-    screamGain.gain.setValueAtTime(0.01, ctx.currentTime);
-    screamGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.08);
-    screamGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.4);
-
-    // Filter to give that dark muffled haunted house acoustics
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(600, ctx.currentTime);
-    filter.frequency.linearRampToValueAtTime(2800, ctx.currentTime + 0.1);
-    filter.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 2.2);
-
-    droneGain.gain.setValueAtTime(0.65, ctx.currentTime);
-    droneGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.4);
-
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(droneGain);
-    droneGain.connect(ctx.destination);
-
-    screamOsc.connect(screamGain);
-    screamGain.connect(ctx.destination);
-
-    osc1.start();
-    osc2.start();
-    screamOsc.start();
-    osc1.stop(ctx.currentTime + 2.4);
-    osc2.stop(ctx.currentTime + 2.4);
-    screamOsc.stop(ctx.currentTime + 1.4);
-  } catch (err) {
-    console.log("Horror audio synth error:", err);
-  }
-
-  // Backup: Also play realistic horror sound sample from CDN
-  try {
-    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2658/2658-preview.mp3");
-    audio.volume = 0.8;
-    audio.play().catch(() => {});
-  } catch {}
-}
-
 export const HorrorOverlay: React.FC<HorrorOverlayProps> = ({ active, onFinished }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-unlock audio on mobile first touch/click
-  useEffect(() => {
-    const unlockAudio = () => {
-      try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          const tempCtx = new AudioCtx();
-          if (tempCtx.state === "suspended") {
-            tempCtx.resume();
-          }
-        }
-      } catch {}
-      window.removeEventListener("touchstart", unlockAudio);
-      window.removeEventListener("click", unlockAudio);
-    };
-
-    window.addEventListener("touchstart", unlockAudio, { passive: true, once: true });
-    window.addEventListener("click", unlockAudio, { once: true });
-
-    return () => {
-      window.removeEventListener("touchstart", unlockAudio);
-      window.removeEventListener("click", unlockAudio);
-    };
-  }, []);
-
   useEffect(() => {
     if (!active) return;
-
-    // Trigger spine-chilling horror sound
-    playSpookyHorrorSound();
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
