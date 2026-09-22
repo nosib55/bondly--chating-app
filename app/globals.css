@@ -953,6 +953,34 @@ body {
   opacity: 0.9;
 }
 
+/* ─── Floating Love Hearts Animation ────────────────────────────────────────── */
+@keyframes flyLove {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.35) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+    transform: translate3d(var(--sway-mid, 6px), -28px, 0) scale(var(--pop-scale, 1.3)) rotate(var(--rot-mid, 12deg));
+  }
+  45% {
+    opacity: 0.95;
+    transform: translate3d(var(--sway-end, -10px), -80px, 0) scale(1.05) rotate(var(--rot-final, -12deg));
+  }
+  80% {
+    opacity: 0.7;
+    transform: translate3d(var(--sway-final, 8px), calc(var(--fly-y, -135px) * 0.8), 0) scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--sway-final, 14px), var(--fly-y, -145px), 0) scale(0.5) rotate(var(--rot-final, 18deg));
+  }
+}
+
+.animate-flyLove {
+  animation: flyLove cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
 /* ─── Chat Input ────────────────────────────────────────────────────────────── */
 .chat-input-area {
   padding: 12px 22px 16px;

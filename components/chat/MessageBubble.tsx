@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Check, CheckCheck, ChevronDown, Trash2, Copy } from "lucide-react";
 import { useAuth } from "../../features/auth/hooks/useAuth";
+import { FloatingHearts } from "./FloatingHearts";
 
 const REACTION_EMOJIS = ["❤️", "👍", "😂", "🔥", "😮", "😢"];
 
@@ -12,9 +13,10 @@ export const MessageBubble = ({
   dbUser = null,
   onReact = null,
   onDelete = null 
-}) => {
+}: any) => {
   const { currentUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showLove, setShowLove] = useState(() => Boolean(message.justSent || message.temp));
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on click outside
@@ -72,7 +74,18 @@ export const MessageBubble = ({
 
   return (
     <div className={`msg-row ${isMe ? "me" : "other"} group relative select-text`}>
-      <div className={`bubble ${message.temp ? "opacity-70" : ""} relative group/bubble`}>
+      <div 
+        className={`bubble ${message.temp ? "opacity-70" : ""} relative group/bubble cursor-default`}
+        onDoubleClick={() => {
+          onReact?.(message._id, "❤️");
+          setShowLove(true);
+        }}
+      >
+        {/* Floating Love Animation when message is sent or reacted */}
+        {showLove && (
+          <FloatingHearts isMe={isMe} onComplete={() => setShowLove(false)} />
+        )}
+
         {message.image && (
           <img 
             src={message.image} 
@@ -106,6 +119,9 @@ export const MessageBubble = ({
                     type="button"
                     onClick={() => {
                       onReact?.(message._id, emoji);
+                      if (emoji === "❤️") {
+                        setShowLove(true);
+                      }
                       setMenuOpen(false);
                     }}
                     className={`w-7 h-7 flex items-center justify-center text-sm rounded-full transition-transform hover:scale-130 active:scale-95 ${
@@ -189,7 +205,12 @@ export const MessageBubble = ({
                 <button
                   key={emoji}
                   type="button"
-                  onClick={() => onReact?.(message._id, emoji)}
+                  onClick={() => {
+                    onReact?.(message._id, emoji);
+                    if (emoji === "❤️") {
+                      setShowLove(true);
+                    }
+                  }}
                   className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md transition-all ${
                     reactedByMe
                       ? "bg-accent/30 border border-accent/40 text-white scale-105 shadow-sm"

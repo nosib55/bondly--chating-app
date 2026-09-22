@@ -49,9 +49,14 @@ export const ChatWindow = ({ user }) => {
         const data = await res.json();
         if (data.success) {
           // Compare JSON string or length to avoid resetting when reactions change
-          setMessages((prev) => {
+          setMessages((prev: any[]) => {
             const isDifferent = JSON.stringify(prev) !== JSON.stringify(data.messages);
-            return isDifferent ? data.messages : prev;
+            if (!isDifferent) return prev;
+            const prevClientIds = new Map(prev.map((m: any) => [m._id, m.clientMsgId]));
+            return data.messages.map((m: any) => {
+              const clientMsgId = prevClientIds.get(m._id);
+              return clientMsgId ? { ...m, clientMsgId } : m;
+            });
           });
         }
       } catch (err) {
@@ -94,21 +99,24 @@ export const ChatWindow = ({ user }) => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
-  const handleSend = async (text, imageUrl = "") => {
+  const handleSend = async (text: string, imageUrl = "") => {
     if (!currentUser?.uid || !user?._id) return;
 
     try {
+      const tempId = "temp-" + Date.now();
       // Optimistic Update for butter-smooth UI
       const optimisticMsg = {
-        _id: "temp-" + Date.now(),
+        _id: tempId,
+        clientMsgId: tempId,
         sender: { _id: "me" }, // Messagebubble handles "isMe"
         text,
         image: imageUrl,
         reactions: [],
         createdAt: new Date(),
-        temp: true
+        temp: true,
+        justSent: true
       };
-      setMessages((prev) => [...prev, optimisticMsg]);
+      setMessages((prev: any) => [...prev, optimisticMsg]);
 
       // Real API call
       const res = await fetch(`/api/messages/${user._id}`, {
@@ -123,9 +131,13 @@ export const ChatWindow = ({ user }) => {
 
       const data = await res.json();
       if (data.success) {
-        // Swap temp message with real DB message
-        setMessages((prev) => 
-          prev.map(m => m.temp && m.text === text ? data.message : m)
+        // Swap temp message with real DB message while keeping stable clientMsgId
+        setMessages((prev: any) => 
+          prev.map((m: any) => 
+            (m._id === tempId || (m.temp && m.text === text))
+              ? { ...data.message, clientMsgId: tempId }
+              : m
+          )
         );
       }
     } catch (err) {
@@ -257,9 +269,9 @@ export const ChatWindow = ({ user }) => {
           ) : messages.length > 0 ? (
             <>
               <div className="msg-date-divider uppercase tracking-widest opacity-30 text-[9px] font-bold">Conversation Started</div>
-              {messages.map((msg, i) => (
+              {messages.map((msg: any, i) => (
                 <MessageBubble 
-                  key={msg._id || i} 
+                  key={msg.clientMsgId || msg._id || i} 
                   message={msg} 
                   dbUser={dbUser} 
                   onReact={handleReact}
