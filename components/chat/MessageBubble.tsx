@@ -10,13 +10,14 @@ const REACTION_EMOJIS = ["❤️", "👍", "😂", "🔥", "😮", "😢"];
 export const MessageBubble = ({ 
   message, 
   showTail = true, 
+  justSent = false,
   dbUser = null,
   onReact = null,
   onDelete = null 
 }: any) => {
   const { currentUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showLove, setShowLove] = useState(() => Boolean(message.justSent || message.temp));
+  const [manualLove, setManualLove] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on click outside
@@ -72,18 +73,25 @@ export const MessageBubble = ({
     setMenuOpen(false);
   };
 
+  const shouldShowHearts = manualLove || justSent || Boolean(message.justSent || message.temp);
+
   return (
     <div className={`msg-row ${isMe ? "me" : "other"} group relative select-text`}>
       <div 
         className={`bubble ${message.temp ? "opacity-70" : ""} relative group/bubble cursor-default`}
         onDoubleClick={() => {
           onReact?.(message._id, "❤️");
-          setShowLove(true);
+          setManualLove(true);
         }}
       >
         {/* Floating Love Animation when message is sent or reacted */}
-        {showLove && (
-          <FloatingHearts isMe={isMe} onComplete={() => setShowLove(false)} />
+        {shouldShowHearts && (
+          <FloatingHearts 
+            isMe={isMe} 
+            onComplete={() => {
+              setManualLove(false);
+            }} 
+          />
         )}
 
         {message.image && (
@@ -120,7 +128,7 @@ export const MessageBubble = ({
                     onClick={() => {
                       onReact?.(message._id, emoji);
                       if (emoji === "❤️") {
-                        setShowLove(true);
+                        setManualLove(true);
                       }
                       setMenuOpen(false);
                     }}
@@ -208,7 +216,7 @@ export const MessageBubble = ({
                   onClick={() => {
                     onReact?.(message._id, emoji);
                     if (emoji === "❤️") {
-                      setShowLove(true);
+                      setManualLove(true);
                     }
                   }}
                   className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md transition-all ${

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChatHeader } from "./ChatHeader";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
+import { HorrorOverlay } from "./HorrorOverlay";
 import { useAuth } from "../../features/auth/hooks/useAuth";
 import { useAppStore } from "../../store/useAppStore";
 import { WALLPAPER_PRESETS } from "../../constants/theme.constants";
@@ -13,6 +14,11 @@ export const ChatWindow = ({ user }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dbUser, setDbUser] = useState<any>(null);
+  const [horrorActive, setHorrorActive] = useState(false);
+  const [sentMsgKeys, setSentMsgKeys] = useState<string[]>([]);
+  const prevMsgCountRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
+
   const { currentUser } = useAuth();
   const { wallpaperId, customWallpaperUrl, wallpaperDim } = useAppStore();
   const bottomRef = useRef(null);
@@ -48,6 +54,28 @@ export const ChatWindow = ({ user }) => {
         const res = await fetch(`/api/messages/${user._id}?uid=${currentUser.uid}`);
         const data = await res.json();
         if (data.success) {
+          // Detect incoming message from peer to trigger horror jumpscare
+          if (isInitialLoadRef.current) {
+            isInitialLoadRef.current = false;
+            prevMsgCountRef.current = (data.messages || []).length;
+          } else if (Array.isArray(data.messages) && data.messages.length > prevMsgCountRef.current) {
+            const newCount = data.messages.length;
+            const newMessages = data.messages.slice(prevMsgCountRef.current);
+            const hasIncoming = newMessages.some((m: any) => {
+              const isFromMe = m.sender === "me" ||
+                               m.sender?._id === "me" ||
+                               m.sender === currentUser?.uid ||
+                               m.sender?.firebaseUid === currentUser?.uid ||
+                               (dbUser && (m.sender === dbUser._id || m.sender?._id === dbUser._id));
+              return !isFromMe;
+            });
+
+            if (hasIncoming) {
+              setHorrorActive(true);
+            }
+            prevMsgCountRef.current = newCount;
+          }
+
           // Compare JSON string or length to avoid resetting when reactions change
           setMessages((prev: any[]) => {
             const isDifferent = JSON.stringify(prev) !== JSON.stringify(data.messages);
@@ -92,7 +120,7 @@ export const ChatWindow = ({ user }) => {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [user?._id, currentUser?.uid]);
+  }, [user?._id, currentUser?.uid, dbUser]);
 
   // Handle auto-scroll
   useEffect(() => {
@@ -104,6 +132,12 @@ export const ChatWindow = ({ user }) => {
 
     try {
       const tempId = "temp-" + Date.now();
+      // Track sent message keys for persistent love animation across re-renders
+      setSentMsgKeys((prev) => [...prev, tempId, text]);
+      setTimeout(() => {
+        setSentMsgKeys((prev) => prev.filter((k) => k !== tempId && k !== text));
+      }, 4000);
+
       // Optimistic Update for butter-smooth UI
       const optimisticMsg = {
         _id: tempId,
@@ -230,6 +264,9 @@ export const ChatWindow = ({ user }) => {
 
   return (
     <div className="chat-main animate-fadeIn relative">
+      {/* Horror Jumpscare / Horror Vibe Overlay on Incoming Message */}
+      <HorrorOverlay active={horrorActive} onFinished={() => setHorrorActive(false)} />
+
       <ChatHeader user={user} />
 
       {/* Main Chat Scroll Container with Wallpaper & Overlay */}
@@ -269,15 +306,25 @@ export const ChatWindow = ({ user }) => {
           ) : messages.length > 0 ? (
             <>
               <div className="msg-date-divider uppercase tracking-widest opacity-30 text-[9px] font-bold">Conversation Started</div>
-              {messages.map((msg: any, i) => (
-                <MessageBubble 
-                  key={msg.clientMsgId || msg._id || i} 
-                  message={msg} 
-                  dbUser={dbUser} 
-                  onReact={handleReact}
-                  onDelete={handleDeleteMessage}
-                />
-              ))}
+              {messages.map((msg: any, i) => {
+                const isJustSent = Boolean(
+                  msg.temp ||
+                  msg.justSent ||
+                  sentMsgKeys.includes(msg._id) ||
+                  sentMsgKeys.includes(msg.text)
+                );
+
+                return (
+                  <MessageBubble 
+                    key={msg.clientMsgId || msg._id || i} 
+                    message={msg} 
+                    justSent={isJustSent}
+                    dbUser={dbUser} 
+                    onReact={handleReact}
+                    onDelete={handleDeleteMessage}
+                  />
+                );
+              })}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center opacity-30 py-20 text-center">

@@ -19,36 +19,36 @@ interface HeartParticle {
   durationMs: number;
 }
 
-const HEART_ICONS = ["❤️", "💖", "💕", "💓", "💗", "💘", "✨", "❤️‍🔥"];
+const HEART_ICONS = ["❤️", "💖", "💕", "💓", "💗", "💘", "✨", "❤️‍🔥", "🥰"];
 
 function createHeartParticles(isMe: boolean): HeartParticle[] {
   const list: HeartParticle[] = [];
-  const count = 12;
+  const count = 14;
 
   for (let i = 0; i < count; i++) {
     const emoji = HEART_ICONS[Math.floor(Math.random() * HEART_ICONS.length)];
-    const delayMs = i * 85 + Math.floor(Math.random() * 60);
-    const durationMs = 1700 + Math.floor(Math.random() * 500);
+    const delayMs = i * 75 + Math.floor(Math.random() * 50);
+    const durationMs = 1800 + Math.floor(Math.random() * 600);
 
-    // Horizontal position spread along the bubble top edge
+    // Horizontal position spread along the bubble
     const leftPercent = isMe
-      ? 40 + Math.random() * 55 // Biased towards right edge for sender
-      : 5 + Math.random() * 55;  // Biased towards left edge for receiver
+      ? 35 + Math.random() * 60 // Right-aligned for sender
+      : 5 + Math.random() * 60;  // Left-aligned for other
 
-    const flyY = -(90 + Math.random() * 95); // Floats upward by 90px - 185px
-    const swayMid = (Math.random() - 0.5) * 28;
-    const swayEnd = (Math.random() - 0.5) * 40;
-    const swayFinal = (Math.random() - 0.5) * 32;
-    const rotMid = (Math.random() - 0.5) * 35;
-    const rotFinal = (Math.random() - 0.5) * 45;
-    const popScale = 1.1 + Math.random() * 0.35;
-    const fontSize = 16 + Math.floor(Math.random() * 11);
+    const flyY = -(100 + Math.random() * 95); // Floats upward by 100px - 195px
+    const swayMid = (Math.random() - 0.5) * 32;
+    const swayEnd = (Math.random() - 0.5) * 44;
+    const swayFinal = (Math.random() - 0.5) * 36;
+    const rotMid = (Math.random() - 0.5) * 40;
+    const rotFinal = (Math.random() - 0.5) * 50;
+    const popScale = 1.15 + Math.random() * 0.4;
+    const fontSize = 18 + Math.floor(Math.random() * 12);
 
     list.push({
       id: i,
       emoji,
       leftPercent,
-      bottomPx: 12 + Math.floor(Math.random() * 10),
+      bottomPx: 10 + Math.floor(Math.random() * 12),
       flyY,
       swayMid,
       swayEnd,
@@ -76,7 +76,7 @@ export const FloatingHearts: React.FC<FloatingHeartsProps> = ({ onComplete, isMe
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete?.();
-    }, 2500);
+    }, 2800);
 
     return () => clearTimeout(timer);
   }, [onComplete]);
@@ -85,19 +85,43 @@ export const FloatingHearts: React.FC<FloatingHeartsProps> = ({ onComplete, isMe
 
   return (
     <div
-      className="absolute inset-0 pointer-events-none z-30 overflow-visible"
+      className="absolute inset-0 pointer-events-none overflow-visible select-none"
+      style={{ zIndex: 9999 }}
       aria-hidden="true"
     >
+      <style>{`
+        @keyframes flyLoveBurst {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 0, 0) scale(0.3) rotate(0deg);
+          }
+          15% {
+            opacity: 1;
+            transform: translate3d(var(--sway-mid, 8px), -35px, 0) scale(var(--pop-scale, 1.35)) rotate(var(--rot-mid, 15deg));
+          }
+          50% {
+            opacity: 0.95;
+            transform: translate3d(var(--sway-end, -12px), -90px, 0) scale(1.1) rotate(var(--rot-end, -10deg));
+          }
+          80% {
+            opacity: 0.75;
+            transform: translate3d(var(--sway-final, 10px), calc(var(--fly-y, -140px) * 0.8), 0) scale(0.85);
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(var(--sway-final, 15px), var(--fly-y, -150px), 0) scale(0.4) rotate(var(--rot-final, 20deg));
+          }
+        }
+      `}</style>
       {particles.map((p) => (
         <span
           key={p.id}
-          className="absolute select-none pointer-events-none will-change-transform animate-flyLove"
+          className="absolute select-none pointer-events-none will-change-transform"
           style={{
             left: `${p.leftPercent}%`,
             bottom: `${p.bottomPx}px`,
             fontSize: `${p.fontSize}px`,
-            animationDelay: `${p.delayMs}ms`,
-            animationDuration: `${p.durationMs}ms`,
+            animation: `flyLoveBurst ${p.durationMs}ms cubic-bezier(0.2, 0.8, 0.2, 1) ${p.delayMs}ms both`,
             ["--fly-y" as any]: `${p.flyY}px`,
             ["--sway-mid" as any]: `${p.swayMid}px`,
             ["--sway-end" as any]: `${p.swayEnd}px`,
@@ -105,7 +129,7 @@ export const FloatingHearts: React.FC<FloatingHeartsProps> = ({ onComplete, isMe
             ["--rot-mid" as any]: `${p.rotMid}deg`,
             ["--rot-final" as any]: `${p.rotFinal}deg`,
             ["--pop-scale" as any]: p.popScale,
-            filter: "drop-shadow(0 2px 8px rgba(255, 60, 110, 0.5))",
+            filter: "drop-shadow(0 2px 10px rgba(255, 30, 90, 0.65))",
           }}
         >
           {p.emoji}
