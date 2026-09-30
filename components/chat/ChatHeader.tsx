@@ -9,7 +9,12 @@ import { useAuth } from "../../features/auth/hooks/useAuth";
 import Swal from "sweetalert2";
 import { ThemeModal } from "./ThemeModal";
 
-export const ChatHeader = ({ user, chat = null }) => {
+export const ChatHeader = ({ 
+  user, 
+  chat = null, 
+  deletedCount = 0, 
+  onPurgeDeleted = null 
+}: any) => {
   const router = useRouter();
   const { setActiveChatId } = useAppStore();
   const { currentUser } = useAuth();
@@ -123,6 +128,18 @@ export const ChatHeader = ({ user, chat = null }) => {
         <button className="icon-btn" onClick={handleToggleLock} title={isLocked ? "Unlock Chat" : "Lock Chat"}>
           {isLocked ? <Unlock size={18} className="text-accent" /> : <Lock size={18} />}
         </button>
+        {onPurgeDeleted && deletedCount > 0 && (
+          <button 
+            className="icon-btn text-red-400 hover:text-red-300 relative transition-colors" 
+            onClick={onPurgeDeleted} 
+            title={`Permanently delete all ${deletedCount} deleted messages`}
+          >
+            <Trash2 size={18} />
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-bold text-white shadow">
+              {deletedCount}
+            </span>
+          </button>
+        )}
         <button className="icon-btn hover:text-red-500 transition-colors" onClick={handleDeleteChat} title="Delete Chat">
           <Trash2 size={18} />
         </button>

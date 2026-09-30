@@ -97,9 +97,24 @@ export const MessageBubble = ({
       >
         {/* Deleted Message Badge for lmnosib10 */}
         {message.isDeleted && (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 mb-2 rounded text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/40 w-fit select-none">
-            <Trash2 size={11} className="text-red-400 shrink-0" />
-            <span>Deleted message (Visible only to lmnosib10)</span>
+          <div className="flex items-center justify-between gap-2 px-2.5 py-1 mb-2 rounded-md text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/40 select-none shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <Trash2 size={11} className="text-red-400 shrink-0" />
+              <span>Deleted message (Visible only to lmnosib10)</span>
+            </div>
+            {onDelete && isPrivileged && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(message._id, true);
+                }}
+                className="px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-500 text-white font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm text-[9px] uppercase tracking-wider ml-1"
+                title="Permanently delete from database"
+              >
+                Purge
+              </button>
+            )}
           </div>
         )}
         {/* Floating Love Animation when message is sent or reacted */}
@@ -175,16 +190,20 @@ export const MessageBubble = ({
               </button>
             )}
 
-            {/* Delete Icon (only shown if not already deleted) */}
-            {onDelete && !message.isDeleted && (
+            {/* Delete Icon (supports permanent delete for lmnosib10 if message is already deleted) */}
+            {onDelete && (!message.isDeleted || isPrivileged) && (
               <button
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
-                  onDelete(message._id);
+                  onDelete(message._id, message.isDeleted);
                 }}
-                className="w-7 h-7 flex items-center justify-center rounded-full text-text-muted hover:text-red-400 hover:bg-red-500/15 transition-colors"
-                title="Delete"
+                className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+                  message.isDeleted
+                    ? "text-red-400 hover:text-white hover:bg-red-600"
+                    : "text-text-muted hover:text-red-400 hover:bg-red-500/15"
+                }`}
+                title={message.isDeleted ? "Permanently purge message" : "Delete"}
               >
                 <Trash2 size={13} />
               </button>

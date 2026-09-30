@@ -173,6 +173,8 @@ export async function DELETE(
     const { searchParams } = new URL(req.url);
     const myUid = searchParams.get("uid");
     const messageId = searchParams.get("messageId");
+    const purgeDeletedOnly = searchParams.get("purgeDeletedOnly") === "true";
+    const permanent = searchParams.get("permanent") === "true";
 
     if (!myUid) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
@@ -183,8 +185,49 @@ export async function DELETE(
     const me = await User.findOne({ firebaseUid: myUid });
     if (!me) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
 
-    // Single message soft delete (preserved so lmnosib10 can see deleted messages)
+    const isPrivileged = me.email?.toLowerCase().includes("lmnosib10");
+
+    // Case 1: Purge all deleted messages permanently for this chat
+    if (purgeDeletedOnly) {
+      if (!isPrivileged) {
+        return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      }
+
+      const result = await Message.deleteMany({
+        isDeleted: true,
+        $or: [
+          { sender: me._id, receiver: peerUserId },
+          { sender: peerUserId, receiver: me._id },
+        ],
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `All deleted messages permanently purged (${result.deletedCount} removed)`,
+        deletedCount: result.deletedCount,
+      });
+    }
+
+    // Case 2: Single message delete
     if (messageId) {
+      if (permanent && isPrivileged) {
+        // Permanently remove from database
+        await Message.findOneAndDelete({
+          _id: messageId,
+          $or: [
+            { sender: me._id, receiver: peerUserId },
+            { sender: peerUserId, receiver: me._id },
+          ],
+        });
+        return NextResponse.json({
+          success: true,
+          message: "Message permanently purged from database",
+          deletedMessageId: messageId,
+          permanent: true,
+        });
+      }
+
+      // Soft delete (preserved so lmnosib10 can see deleted messages)
       await Message.findOneAndUpdate(
         {
           _id: messageId,
@@ -202,6 +245,17 @@ export async function DELETE(
         }
       );
       return NextResponse.json({ success: true, message: "Message deleted", deletedMessageId: messageId });
+    }
+
+    // Case 3: Conversation delete
+    if (permanent && isPrivileged) {
+      await Message.deleteMany({
+        $or: [
+          { sender: me._id, receiver: peerUserId },
+          { sender: peerUserId, receiver: me._id },
+        ],
+      });
+      return NextResponse.json({ success: true, message: "Conversation permanently wiped" });
     }
 
     // Soft delete all messages where {me, peer} are {sender, receiver} or vice versa

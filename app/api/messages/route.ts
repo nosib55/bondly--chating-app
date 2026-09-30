@@ -25,6 +25,24 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
+    const isPrivileged = me.email?.toLowerCase().includes("lmnosib10");
+
+    // Purge all deleted messages across all chats permanently
+    if (mode === "purgeDeleted") {
+      if (!isPrivileged) {
+        return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      }
+      const purgeResult = await Message.deleteMany({
+        isDeleted: true,
+        $or: [{ sender: me._id }, { receiver: me._id }],
+      });
+      return NextResponse.json({
+        success: true,
+        deletedCount: purgeResult.deletedCount,
+        message: `Permanently purged ${purgeResult.deletedCount} deleted message(s) from database.`,
+      });
+    }
+
     let filter: any = {
       $or: [{ sender: me._id }, { receiver: me._id }],
     };

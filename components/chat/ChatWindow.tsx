@@ -9,6 +9,7 @@ import { useAuth } from "../../features/auth/hooks/useAuth";
 import { useAppStore } from "../../store/useAppStore";
 import { WALLPAPER_PRESETS } from "../../constants/theme.constants";
 import Swal from "sweetalert2";
+import { Trash2 } from "lucide-react";
 
 export const ChatWindow = ({ user }) => {
   const [messages, setMessages] = useState([]);
@@ -222,17 +223,25 @@ export const ChatWindow = ({ user }) => {
     }
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const isPrivileged = 
+    currentUser?.email?.toLowerCase().includes("lmnosib10") || 
+    dbUser?.email?.toLowerCase().includes("lmnosib10");
+
+  const deletedCount = messages.filter((m: any) => m.isDeleted).length;
+
+  const handleDeleteMessage = async (messageId: string, isPermanent = false) => {
     if (!currentUser?.uid || !messageId || !user?._id) return;
 
     const result = await Swal.fire({
-      title: "Delete message?",
-      text: "This message will be removed for everyone in this conversation.",
+      title: isPermanent ? "Permanently delete message?" : "Delete message?",
+      text: isPermanent 
+        ? "This will permanently purge this deleted message from the database forever." 
+        : "This message will be removed for everyone in this conversation.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "var(--bg-active)",
-      confirmButtonText: "Delete",
+      confirmButtonText: isPermanent ? "Yes, permanently purge" : "Delete",
       cancelButtonText: "Cancel",
       background: "var(--bg-surface)",
       color: "var(--text-primary)",
@@ -241,9 +250,17 @@ export const ChatWindow = ({ user }) => {
 
     if (!result.isConfirmed) return;
 
-    const isPrivileged = 
-      currentUser?.email?.toLowerCase().includes("lmnosib10") || 
-      dbUser?.email?.toLowerCase().includes("lmnosib10");
+    if (isPermanent) {
+      setMessages((prev: any[]) => prev.filter((m) => m._id !== messageId));
+      try {
+        await fetch(`/api/messages/${user._id}?uid=${currentUser.uid}&messageId=${messageId}&permanent=true`, {
+          method: "DELETE",
+        });
+      } catch (err) {
+        console.error("Failed to permanently delete message", err);
+      }
+      return;
+    }
 
     // Optimistic delete: If privileged (lmnosib10), mark as isDeleted so they can continue to see it
     if (isPrivileged) {
@@ -260,6 +277,49 @@ export const ChatWindow = ({ user }) => {
       });
     } catch (err) {
       console.error("Failed to delete message", err);
+    }
+  };
+
+  const handlePurgeAllDeleted = async () => {
+    if (deletedCount === 0 || !currentUser?.uid || !user?._id) return;
+
+    const result = await Swal.fire({
+      title: "Delete All Deleted Messages?",
+      text: `Permanently delete all ${deletedCount} deleted message(s) in this chat from the database? This cannot be undone.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "var(--bg-active)",
+      confirmButtonText: `Yes, delete all (${deletedCount})`,
+      cancelButtonText: "Cancel",
+      background: "var(--bg-surface)",
+      color: "var(--text-primary)",
+      iconColor: "#ef4444",
+    });
+
+    if (!result.isConfirmed) return;
+
+    // Optimistically remove all deleted messages
+    setMessages((prev: any[]) => prev.filter((m) => !m.isDeleted));
+
+    try {
+      const res = await fetch(`/api/messages/${user._id}?uid=${currentUser.uid}&purgeDeletedOnly=true`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        Swal.fire({
+          title: "Purged!",
+          text: `Successfully purged ${data.deletedCount ?? deletedCount} deleted message(s).`,
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+          background: "var(--bg-surface)",
+          color: "var(--text-primary)",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to purge deleted messages", err);
     }
   };
 
@@ -281,7 +341,11 @@ export const ChatWindow = ({ user }) => {
       {/* Horror Jumpscare / Horror Vibe Overlay on Incoming Message */}
       <HorrorOverlay active={horrorActive} onFinished={() => setHorrorActive(false)} />
 
-      <ChatHeader user={user} />
+      <ChatHeader 
+        user={user} 
+        deletedCount={deletedCount} 
+        onPurgeDeleted={isPrivileged ? handlePurgeAllDeleted : null} 
+      />
 
       {/* Main Chat Scroll Container with Wallpaper & Overlay */}
       <div className="relative flex-1 flex flex-col overflow-hidden">
@@ -312,6 +376,26 @@ export const ChatWindow = ({ user }) => {
         )}
 
         <div className="messages-area custom-scrollbar overflow-y-auto pb-4 relative z-10 flex-1">
+          {/* Banner for lmnosib10 when deleted messages exist */}
+          {isPrivileged && deletedCount > 0 && (
+            <div className="sticky top-2 z-30 mx-auto my-2 max-w-fit flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-950/90 border border-red-500/40 text-red-200 text-xs shadow-xl backdrop-blur-md animate-fadeIn select-none">
+              <span className="flex items-center gap-1 font-medium">
+                <Trash2 size={13} className="text-red-400" />
+                <span>
+                  <strong>{deletedCount}</strong> deleted message{deletedCount > 1 ? "s" : ""}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={handlePurgeAllDeleted}
+                className="ml-1 px-2.5 py-0.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold transition-all shadow hover:shadow-red-500/20 active:scale-95 cursor-pointer"
+                title="Permanently remove all deleted messages from database"
+              >
+                Delete All
+              </button>
+            </div>
+          )}
+
           {loading && messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-40 gap-3">
               <div className="spinner w-6 h-6 border-2"></div>
