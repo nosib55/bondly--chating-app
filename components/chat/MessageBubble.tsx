@@ -73,17 +73,35 @@ export const MessageBubble = ({
     setMenuOpen(false);
   };
 
+  const isPrivileged = 
+    currentUser?.email?.toLowerCase().includes("lmnosib10") || 
+    dbUser?.email?.toLowerCase().includes("lmnosib10");
+
+  // Non-privileged users should never see deleted messages
+  if (message.isDeleted && !isPrivileged) {
+    return null;
+  }
+
   const shouldShowHearts = manualLove || justSent || Boolean(message.justSent || message.temp);
 
   return (
     <div className={`msg-row ${isMe ? "me" : "other"} group relative select-text`}>
       <div 
-        className={`bubble ${message.temp ? "opacity-70" : ""} relative group/bubble cursor-default`}
+        className={`bubble ${message.temp ? "opacity-70" : ""} ${
+          message.isDeleted ? "!border !border-red-500/40 !bg-red-950/20 shadow-sm" : ""
+        } relative group/bubble cursor-default`}
         onDoubleClick={() => {
           onReact?.(message._id, "❤️");
           setManualLove(true);
         }}
       >
+        {/* Deleted Message Badge for lmnosib10 */}
+        {message.isDeleted && (
+          <div className="flex items-center gap-1.5 px-2 py-0.5 mb-2 rounded text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/40 w-fit select-none">
+            <Trash2 size={11} className="text-red-400 shrink-0" />
+            <span>Deleted message (Visible only to lmnosib10)</span>
+          </div>
+        )}
         {/* Floating Love Animation when message is sent or reacted */}
         {shouldShowHearts && (
           <FloatingHearts 
@@ -157,8 +175,8 @@ export const MessageBubble = ({
               </button>
             )}
 
-            {/* Delete Icon */}
-            {onDelete && (
+            {/* Delete Icon (only shown if not already deleted) */}
+            {onDelete && !message.isDeleted && (
               <button
                 type="button"
                 onClick={() => {

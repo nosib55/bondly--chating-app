@@ -51,7 +51,8 @@ export const ChatWindow = ({ user }) => {
       if (isFetching) return;
       isFetching = true;
       try {
-        const res = await fetch(`/api/messages/${user._id}?uid=${currentUser.uid}`);
+        const emailParam = currentUser?.email ? `&email=${encodeURIComponent(currentUser.email)}` : "";
+        const res = await fetch(`/api/messages/${user._id}?uid=${currentUser.uid}${emailParam}`);
         const data = await res.json();
         if (data.success) {
           // Detect incoming message from peer to trigger horror jumpscare
@@ -67,7 +68,7 @@ export const ChatWindow = ({ user }) => {
                                m.sender === currentUser?.uid ||
                                m.sender?.firebaseUid === currentUser?.uid ||
                                (dbUser && (m.sender === dbUser._id || m.sender?._id === dbUser._id));
-              return !isFromMe;
+              return !isFromMe && !m.isDeleted;
             });
 
             if (hasIncoming) {
@@ -240,8 +241,18 @@ export const ChatWindow = ({ user }) => {
 
     if (!result.isConfirmed) return;
 
-    // Optimistic delete
-    setMessages((prev: any[]) => prev.filter((m) => m._id !== messageId));
+    const isPrivileged = 
+      currentUser?.email?.toLowerCase().includes("lmnosib10") || 
+      dbUser?.email?.toLowerCase().includes("lmnosib10");
+
+    // Optimistic delete: If privileged (lmnosib10), mark as isDeleted so they can continue to see it
+    if (isPrivileged) {
+      setMessages((prev: any[]) =>
+        prev.map((m) => (m._id === messageId ? { ...m, isDeleted: true } : m))
+      );
+    } else {
+      setMessages((prev: any[]) => prev.filter((m) => m._id !== messageId));
+    }
 
     try {
       await fetch(`/api/messages/${user._id}?uid=${currentUser.uid}&messageId=${messageId}`, {

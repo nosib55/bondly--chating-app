@@ -29,12 +29,18 @@ export async function DELETE(req: Request) {
       $or: [{ sender: me._id }, { receiver: me._id }],
     };
 
-    const result = await Message.deleteMany(filter);
+    const result = await Message.updateMany(filter, {
+      $set: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: me._id,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      deletedCount: result.deletedCount,
-      message: `All chat history (${result.deletedCount} messages) permanently deleted for both sides.`,
+      deletedCount: result.modifiedCount,
+      message: `All chat history (${result.modifiedCount} messages) deleted for both sides.`,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

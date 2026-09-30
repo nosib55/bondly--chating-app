@@ -13,6 +13,9 @@ export interface IMessage extends Document {
   image?: string;
   read: boolean;
   reactions?: IReaction[];
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  deletedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
 }
 
@@ -23,6 +26,9 @@ const MessageSchema: Schema = new Schema(
     text: { type: String, default: "" },
     image: { type: String },
     read: { type: Boolean, default: false },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
+    deletedBy: { type: Schema.Types.ObjectId, ref: "User" },
     reactions: [
       {
         emoji: { type: String, required: true },

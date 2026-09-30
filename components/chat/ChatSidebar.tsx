@@ -49,7 +49,8 @@ export const ChatSidebar = () => {
         }
 
         // Load conversation partners with unread info
-        const convRes = await fetch(`/api/conversations?uid=${currentUser.uid}`);
+        const emailParam = currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : "";
+        const convRes = await fetch(`/api/conversations?uid=${currentUser.uid}${emailParam}`);
         const convData = await convRes.json();
         if (convData.success) {
           setContacts(convData.users);
